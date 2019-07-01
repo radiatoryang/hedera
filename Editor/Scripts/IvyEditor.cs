@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using UnityEditorInternal;
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -9,196 +10,263 @@ namespace Hedera
     [CustomEditor(typeof(IvyBehavior))]
     public class IvyEditor : Editor
     {
-        private IvyGenerator gen;
-        IvyBehavior ivyTarget;
+        IvyBehavior ivyBehavior;
 
-        bool isUsing2DMode, isPlantingModeActive, showGrowingEditor, showBirthEditor;
+        bool isPlantingModeActive, showGrowingEditor, showBirthEditor, generateMeshEveryStep;
 
-        Vector3 cursorPos;
+        private Vector3 lastPos, mousePos, mouseNormal, mouseDirection;
+        double lastEditorTime, deltaTime;
+        // private Quaternion mouseRot;
 
-        // void OnEnable() {
-        //     SceneView.onSceneGUIDelegate += this.OnSceneGUI;
-        // }
-
-        // void OnDisable() {
-        //     SceneView.onSceneGUIDelegate -= this.OnSceneGUI;
-        // }
-
-        public void OnSceneGUI()
+        // got working painter code from https://github.com/marmitoTH/Unity-Prefab-Placement-Editor
+        private void OnSceneGUI()
         {
-            //with creation mode enabled, place new root on keypress
-            if (Event.current.type == EventType.Layout || Event.current.type == EventType.Repaint || Event.current.button != 0 || !isPlantingModeActive) {
-                HandleUtility.Repaint();
+            if ( ivyBehavior == null) {
+                ivyBehavior = (IvyBehavior)target;
+            }
+
+            foreach ( var graph in ivyBehavior.ivyGraphs) {
+                if ( !graph.generateMeshDuringGrowth ) {
+                    DrawDebugIvy( graph );
+                }
+            }
+
+            if ( !isPlantingModeActive ) {
                 return;
             }
 
-            // HandleUtility.AddDefaultControl(GUIUtility.GetControlID(FocusType.Passive)); // ignore other input
-             int controlId = GUIUtility.GetControlID(FocusType.Passive);
- 
-            //cast a ray against mouse position
-            Ray worldRay = HandleUtility.GUIPointToWorldRay(Event.current.mousePosition);
-            RaycastHit hitInfo = new RaycastHit();
-            Vector3 pos = Vector3.zero;
-            
-            if (Physics.Raycast(worldRay, out hitInfo)) {
-                pos = hitInfo.point;
-                ivyTarget.cursorPos = pos;
+            Event current = Event.current;
+            int controlId = GUIUtility.GetControlID(GetHashCode(), FocusType.Passive);
+
+            MousePosition();
+
+            if (Event.current.type == EventType.Repaint ) {
+                deltaTime = EditorApplication.timeSinceStartup - lastEditorTime;
+                lastEditorTime = EditorApplication.timeSinceStartup;
             }
 
-            // preview in scene view
-            // DrawWireCube( pos, Vector3.one * 0.5f, Color.yellow);
-            // Debug.DrawRay( pos, hitInfo.normal * 0.5f, Color.yellow, 0.01f);
+            if ((current.type == EventType.MouseDrag || current.type == EventType.MouseDown) )
+            {
+  
+                if (current.button == 0 && (lastPos == Vector3.zero || CanDraw()) && !current.shift)
+                {
+                    mouseDirection = Vector3.MoveTowards( mouseDirection, (mousePos - lastPos).normalized, System.Convert.ToSingle(deltaTime) );
+                    lastPos = mousePos;
+                    ivyBehavior.ivyGraphs.Add( IvyCore.SeedNewIvyGraph(lastPos, mouseDirection, mouseNormal, generateMeshEveryStep) );
 
-            // OnMouseUp because object selection happens on mouse up, so we should use it up
-            if ( Event.current.type == EventType.MouseUp ) {
-                isPlantingModeActive = false;
-                var newIvy = new IvyGraph();
+                } 
+                else if (current.button == 0 && current.shift)
+                {
+                    lastPos = mousePos;
+                    // erase
+                }
+            }
 
-                PlaceRoot(newIvy, pos);
-                gen.ivyGraphs.Add( newIvy );
+            if (current.type == EventType.MouseUp)
+                lastPos = Vector3.zero;
 
-                Debug.Log("new ivy at " + newIvy.seedPos.ToString() );
-                HandleUtility.Repaint();
-                Event.current.Use();
-                HandleUtility.Repaint();
-                GUIUtility.hotControl = -1;
-            } else {
-                GUIUtility.hotControl = controlId;
-                Event.current.Use();
+            if (Event.current.type == EventType.Layout)
+            {
+                HandleUtility.AddDefaultControl(controlId);
+            }
+
+            SceneView.RepaintAll();
+        }
+
+        public bool CanDraw ()
+        { 
+            float dist = Vector3.Distance(mousePos, lastPos);
+
+            if (dist >= 0.5f)
+                return true;
+            else
+                return false;
+        }
+
+        public void MousePosition ()
+        {
+            Ray ray = HandleUtility.GUIPointToWorldRay(Event.current.mousePosition);
+            RaycastHit hit;
+
+            if (Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity)) // TODO: layer mask
+            {
+                mousePos = hit.point + hit.normal * 0.1f;
+                mouseNormal = hit.normal;
+                // mouseRot = Quaternion.FromToRotation(Vector3.up, hit.normal);
+                Handles.color = Color.blue;
+                Handles.DrawWireDisc(mousePos, hit.normal, 0.5f / 2);
+                Handles.DrawLine(mousePos, mousePos + hit.normal * 0.5f);
             }
         }
+
+    	public void DrawDebugIvy(IvyGraph graph, Color debugColor = default(Color)) {
+			if ( debugColor == default(Color)) {
+				debugColor = Color.yellow;
+			}
+            Handles.color = debugColor;
+            if ( graph.debugLineSegmentsArray != null ) {
+                Handles.DrawLines( graph.debugLineSegmentsArray );
+            }
+		}
 
         //called whenever the inspector gui gets rendered
         public override void OnInspectorGUI()
         {
-            ivyTarget = (IvyBehavior)target;
+            EditorGUILayout.Space();
+            if ( ivyBehavior == null) {
+                ivyBehavior = (IvyBehavior)target;
+            }
 
-            //get manager reference
-            gen = EditorGUILayout.ObjectField( gen, typeof(IvyGenerator), false ) as IvyGenerator;
+            EditorGUILayout.BeginVertical( EditorStyles.helpBox );
+            ivyBehavior.profileAsset = EditorGUILayout.ObjectField( ivyBehavior.profileAsset, typeof(IvyProfileAsset), false ) as IvyProfileAsset;
 
-            if ( gen == null) {
+            if ( ivyBehavior.profileAsset == null) {
+                EditorGUILayout.HelpBox("Please assign an Ivy Profile Asset.", MessageType.Warning);
+                if ( GUILayout.Button("Create new Ivy Profile Asset...") ) {
+                    var newAsset = IvyCore.CreateNewAsset("");
+                    if ( newAsset != null) {
+                        ivyBehavior.profileAsset = newAsset;
+                        Selection.activeGameObject = ivyBehavior.gameObject;
+                    }
+                }
+                EditorGUILayout.EndVertical();
                 return;
             }
 
+            var ivyProfile = ivyBehavior.profileAsset.ivyProfile;
 
-
-            if ( !IvyCore.ivyGenerators.Contains(gen) ) {
-                IvyCore.ivyGenerators.Add(gen);
+            if ( !IvyCore.ivyBehaviors.Contains(ivyBehavior) ) {
+                IvyCore.ivyBehaviors.Add(ivyBehavior);
             }
 
-            //get sceneview to auto-detect 2D mode
-            SceneView view = GetSceneView();
-            isUsing2DMode = view.in2DMode;
+            // EditorGUILayout.HelpBox("Hint:\nPress 'Start Plant' to begin a new ivy root, then press"
+            //                 + " 'p' on your keyboard to place new root in the SceneView. "
+            //                 + "In 3D Mode you have to place root onto objects with colliders."
+            //                 + " You can only place one root at the scene view position.", MessageType.Info);
 
-            //plant root creation button
-            if (GUILayout.Button("Plant New Ivy", GUILayout.Height(40)))
-            {
-                //focus sceneview for placement
-                view.Focus();
-                isPlantingModeActive = true;
-            }
-
-            // display existing ivy
-            for ( int i=0; i< gen.ivyGraphs.Count; i++ ) {
-                var ivy = gen.ivyGraphs[i];
-                EditorGUILayout.BeginHorizontal( EditorStyles.helpBox );
-                if (GUILayout.Button("x")) {
-                    // stop growing and/or delete this ivy
-                    gen.ivyGraphs.Remove(ivy);
-                    EditorGUILayout.EndHorizontal();
-                    i--;
-                    continue;
-                }
-                EditorGUILayout.LabelField(ivy.seedPos.ToString(), ivy.isGrowing ? "GROWING!" : "DONE" );
-                if (GUILayout.Button("Instantiate"))
-                {
-                    gen.GenerateMesh(ivy);
-                    Repaint();
-                }
-                if (GUILayout.Button("Export OBJ"))
-                {
-                    // TODO: export OBJ
-                }
-                EditorGUILayout.EndHorizontal();
-            }
-
-            //plant instructions
-            GUI.backgroundColor = Color.white;
-            EditorGUILayout.HelpBox("Hint:\nPress 'Start Plant' to begin a new ivy root, then press"
-                            + " 'p' on your keyboard to place new root in the SceneView. "
-                            + "In 3D Mode you have to place root onto objects with colliders."
-                            + " You can only place one root at the scene view position.", MessageType.Info);
-            EditorGUILayout.Space();
-
+            EditorGUILayout.BeginVertical( EditorStyles.helpBox );
             showGrowingEditor = EditorGUILayout.Foldout(showGrowingEditor, "Growth Settings");
             if (EditorGUILayout.BeginFadeGroup(showGrowingEditor ? 1 : 0))
             {
                 GUIContent content = null;
-                EditorGUILayout.Space();
                 
                 content = new GUIContent("Ivy Size : ", "adapts the ivy growing and geometry to the scene size and content");
-                gen.ivyProfile.ivySize = EditorGUILayout.Slider(content, gen.ivyProfile.ivySize, 0, 0.05f);
+                ivyProfile.ivySize = EditorGUILayout.Slider(content, ivyProfile.ivySize, 0, 0.5f);
 
                 content = new GUIContent("Primary Weight : ", "defines the weight of the primary growing direction");
-                gen.ivyProfile.primaryWeight = EditorGUILayout.Slider(content, gen.ivyProfile.primaryWeight, 0, 1f);
+                ivyProfile.primaryWeight = EditorGUILayout.Slider(content, ivyProfile.primaryWeight, 0, 1f);
 
                 content = new GUIContent("Random Weight : ", "defines the weight of a random growing direction");
-                gen.ivyProfile.randomWeight = EditorGUILayout.Slider(content, gen.ivyProfile.randomWeight, 0, 1f);
+                ivyProfile.randomWeight = EditorGUILayout.Slider(content, ivyProfile.randomWeight, 0, 1f);
 
                 content = new GUIContent("Gravity Weight : ", "defines the weight of gravity");
-                gen.ivyProfile.gravityWeight = EditorGUILayout.Slider(content, gen.ivyProfile.gravityWeight, 0, 2f);
+                ivyProfile.gravityWeight = EditorGUILayout.Slider(content, ivyProfile.gravityWeight, 0, 2f);
 
                 content = new GUIContent("Adhesion Weight : ", "defines the weight of adhesion towards attracting surfaces");
-                gen.ivyProfile.adhesionWeight = EditorGUILayout.Slider(content, gen.ivyProfile.adhesionWeight, 0, 1f);
+                ivyProfile.adhesionWeight = EditorGUILayout.Slider(content, ivyProfile.adhesionWeight, 0, 1f);
 
                 content = new GUIContent("Branch Probability : ", "defines the density of branching structure during growing");
-                gen.ivyProfile.branchingProbability = EditorGUILayout.Slider(content, gen.ivyProfile.branchingProbability, 0, 1f);
+                ivyProfile.branchingProbability = EditorGUILayout.Slider(content, ivyProfile.branchingProbability, 0, 1f);
    
                 content = new GUIContent("Max Float Length : ", "defines the length at which a freely floating branch will die");
-                gen.ivyProfile.maxFloatLength = EditorGUILayout.Slider(content, gen.ivyProfile.maxFloatLength, 0, 1f);
+                ivyProfile.maxFloatLength = EditorGUILayout.Slider(content, ivyProfile.maxFloatLength, 0, 1f);
 
                 content = new GUIContent("Max Adhesion Dist : ", "defines the maximum distance to a surface at which the surface will attract the ivy");
-                gen.ivyProfile.maxAdhesionDistance = EditorGUILayout.Slider(content, gen.ivyProfile.maxAdhesionDistance, 0, 1f);
+                ivyProfile.maxAdhesionDistance = EditorGUILayout.Slider(content, ivyProfile.maxAdhesionDistance, 0, 1f);
 
-                gen.ivyProfile.collisionMask = EditorGUILayout.MaskField("Collision Mask", InternalEditorUtility.LayerMaskToConcatenatedLayersMask(gen.ivyProfile.collisionMask), InternalEditorUtility.layers);
+                ivyProfile.collisionMask = EditorGUILayout.MaskField("Collision Mask", InternalEditorUtility.LayerMaskToConcatenatedLayersMask(ivyProfile.collisionMask), InternalEditorUtility.layers);
             }
             EditorGUILayout.EndFadeGroup();
-            EditorGUILayout.Separator();
+            EditorGUILayout.EndVertical();
 
+            EditorGUILayout.BeginVertical( EditorStyles.helpBox );
             showBirthEditor = EditorGUILayout.Foldout(showBirthEditor, "Mesh Settings");
             if (EditorGUILayout.BeginFadeGroup(showBirthEditor ? 1 : 0))
             {
                 GUIContent content = null;
-                EditorGUILayout.Space();
 
-                content = new GUIContent("Ivy Branch Diameter", "defines the diameter of the branch geometry relative to the ivy size");
-                gen.ivyProfile.ivyBranchSize = EditorGUILayout.Slider(content, gen.ivyProfile.ivyBranchSize, 0, 0.5f);
+                content = new GUIContent("Ivy Branch Width", "defines the diameter of the branch geometry relative to the ivy size");
+                ivyProfile.ivyBranchSize = EditorGUILayout.Slider(content, ivyProfile.ivyBranchSize, 0, 0.5f);
     
                 content = new GUIContent("Ivy Leaf Size", "defines the diameter of the leaf geometry relative to the ivy size");
-                gen.ivyProfile.ivyLeafSize = EditorGUILayout.Slider(content, gen.ivyProfile.ivyLeafSize, 0, 2f);
+                ivyProfile.ivyLeafSize = EditorGUILayout.Slider(content, ivyProfile.ivyLeafSize, 0, 2f);
 
                 content = new GUIContent("Leaf Density", "defines the density of the leaves during geometry generation");
-                gen.ivyProfile.leafProbability = EditorGUILayout.Slider(content, gen.ivyProfile.leafProbability, 0, 1f);
+                ivyProfile.leafProbability = EditorGUILayout.Slider(content, ivyProfile.leafProbability, 0, 1f);
 
-                EditorGUILayout.Space();
-
-                gen.ivyProfile.branchMaterial = EditorGUILayout.ObjectField("Branch Material", gen.ivyProfile.branchMaterial, typeof(Material), false) as Material;
-                gen.ivyProfile.leafMaterial = EditorGUILayout.ObjectField("Leaf Material", gen.ivyProfile.leafMaterial, typeof(Material), false) as Material;
+                ivyProfile.branchMaterial = EditorGUILayout.ObjectField("Branch Material", ivyProfile.branchMaterial, typeof(Material), false) as Material;
+                ivyProfile.leafMaterial = EditorGUILayout.ObjectField("Leaf Material", ivyProfile.leafMaterial, typeof(Material), false) as Material;
             }
             EditorGUILayout.EndFadeGroup();
-        }
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.Separator();
 
-        public static SceneView GetSceneView() {
-            SceneView view = SceneView.lastActiveSceneView;
-            if (view == null)
-                view = EditorWindow.GetWindow<SceneView>();
+            // plant root creation button
+            var oldColor = GUI.color;
+            GUI.color = isPlantingModeActive ? Color.yellow : oldColor;
+            if (GUILayout.Button( !isPlantingModeActive ? "Start Painting Ivy": "Stop Painting Ivy" ) )
+            {
+                isPlantingModeActive = !isPlantingModeActive;
+            }
+            GUI.color = oldColor;
 
-            return view;
-        }
+            generateMeshEveryStep = EditorGUILayout.Toggle("Generate Mesh During Growth", generateMeshEveryStep);
 
-        private void PlaceRoot(IvyGraph ivyGraph, Vector3 placePos) {
-            ivyGraph.SeedRoot(placePos);
-            Repaint();
+            if (ivyBehavior.ivyGraphs.Where( ivy => ivy.isGrowing ).Count() > 0) {
+                if ( GUILayout.Button( "Force-Stop All Growing") ) {
+                    IvyCore.ForceStopGrowing();
+                }
+            }
+
+           // display existing ivy
+            for ( int i=0; i< ivyBehavior.ivyGraphs.Count; i++ ) {
+                var ivy = ivyBehavior.ivyGraphs[i];
+                EditorGUILayout.BeginHorizontal( EditorStyles.helpBox );
+                if (GUILayout.Button("x")) {
+                    // stop growing and/or delete this ivy
+                    if ( ivy.isGrowing ) {
+                        ivy.isGrowing = false;
+                    } else {
+                        if ( ivy.rootGO != null) {
+                            DestroyImmediate( ivy.rootGO );
+                        }
+                        ivyBehavior.ivyGraphs.Remove(ivy);
+                        EditorGUILayout.EndHorizontal();
+                        i--;
+                        continue;
+                    }
+                }
+                if ( ivy.rootGO != null ) {
+                    GUI.enabled = false;
+                    EditorGUILayout.ObjectField( ivy.rootGO, typeof(GameObject), true);
+                    GUI.enabled = true;
+                }
+                string ivyLabel = string.Format(
+                    "{1}{2} roots", 
+                    i+1, 
+                    ivy.isGrowing ? "[Growing] " : "", 
+                    ivy.roots.Count
+                );
+                GUILayout.Label(ivyLabel);
+                
+                if ( !ivy.isGrowing ) {
+                    if (GUILayout.Button("Make Mesh", EditorStyles.miniButtonLeft))
+                    {
+                        IvyMesh.GenerateMesh(ivy, ivyProfile);
+                        Repaint();
+                    }
+                    GUI.enabled = ivy.leafMesh != null && ivy.branchMesh != null;
+                    if (GUILayout.Button("Save .OBJ", EditorStyles.miniButtonRight))
+                    {
+                        // TODO: export OBJ
+                    }
+                    GUI.enabled = true;
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.Space();
         }
 
 
