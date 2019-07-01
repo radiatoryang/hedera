@@ -51,6 +51,16 @@ namespace Hedera
 			ivyBehaviors.Clear();
         }
 
+		// TODO:
+		// - make ivy more likely to grow
+		// - give double-sided shader
+		// - make normals always face up
+		// - ivy meshFilter / MR positions should be in the right place + parented to the IvyBehavior
+		// - plant new roots within the same graph
+		// - show capacity for vertices and tris (count nodes)... leaf mesh gen should account for full quota
+		// - are meshes being destroyed properly? maybe not
+
+
         void OnEditorUpdate()
         {
             if (EditorApplication.timeSinceStartup > lastRefreshTime + refreshInterval)
