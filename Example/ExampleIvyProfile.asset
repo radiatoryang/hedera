@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1020a4c7d209d44692bbe0a13ac8cd8, type: 3}
+  m_Name: ExampleIvyGenerator
+  m_EditorClassIdentifier: 
+  ivyProfile:
+    collisionMask:
+      serializedVersion: 2
+      m_Bits: 7
+    branchMaterial: {fileID: 2100000, guid: 123d399f8e63bd14583ff91cb9c53f8a, type: 2}
+    leafMaterial: {fileID: 2100000, guid: f266a98e14b6a8e42a5d186732b9d88c, type: 2}
+    ivyStepDistance: 0.15
+    ivyLeafSize: 0.1
+    ivyBranchSize: 0.01
+    maxFloatLength: 0.42
+    maxAdhesionDistance: 0.25
+    minLength: 0.24999999
+    maxLength: 8
+    maxBranchesPerRoot: 8
+    primaryWeight: 1
+    randomWeight: 0.5
+    gravityWeight: 1
+    adhesionWeight: 0.69
+    branchingProbability: 1
+    leafProbability: 0.5
