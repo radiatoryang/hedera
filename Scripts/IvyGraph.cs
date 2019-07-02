@@ -9,41 +9,30 @@ namespace Hedera
     public class IvyProfile {
 		#if UNITY_EDITOR
 
-		public LayerMask collisionMask;
+		public LayerMask collisionMask = -5;
         public Material branchMaterial, leafMaterial;
 
-         /** the ivy size factor, influences the grow behaviour [0..0,1] */
-	    public float ivySize;
-
-	    /** leaf size factor [0..0,1] */
-	    public float ivyLeafSize;
-
-	    /** branch size factor [0..0,1] */
-	    public float ivyBranchSize;
+	    public float ivyStepDistance = 0.15f;
+	    public float ivyLeafSize = 0.1f;
+	    public float ivyBranchSize = 0.01f;
 
         /** maximum length of an ivy branch segment that is freely floating [0..1] */
-	    public float maxFloatLength;
+	    public float maxFloatLength = 0.2f;
 
 	    /** maximum distance for adhesion of scene object [0..1] */
-	    public float maxAdhesionDistance;
+	    public float maxAdhesionDistance = 0.25f;
 
-	    /** weight for the primary grow vector [0..1] */
-	    public float primaryWeight;
+		// force the ivy root to grow to at least this length
+		public float minLength = 1f, maxLength = 5f;
+		public int maxBranchesPerRoot = 6;
 
-	    /** weight for the random influence vector [0..1] */
-	    public float randomWeight;
+	    public float primaryWeight = 1f;
+	    public float randomWeight = 0.5f;
+	    public float gravityWeight = 1f;
+	    public float adhesionWeight = 0.69f;
 
-	    /** weight for the gravity vector [0..1] */
-	    public float gravityWeight;
-
-	    /** weight for the adhesion vector [0..1] */
-	    public float adhesionWeight;
-
-	    /** the probability of producing a new ivy root per iteration [0..1]*/
-	    public float branchingProbability;
-
-	    /** the probability of creating a new ivy leaf [0..1] */
-	    public float leafProbability;
+	    public float branchingProbability = 0.15f;
+	    public float leafProbability = 0.5f;
 
 		public IvyProfile() {
 			ResetSettings();
@@ -51,21 +40,25 @@ namespace Hedera
 
 	    public void ResetSettings()
         {
-	        primaryWeight = 0.5f;
-	        randomWeight = 0.2f;
-	        gravityWeight = 1.0f;
-	        adhesionWeight = 0.1f;
+	        primaryWeight = 1f;
+	        randomWeight = 0.5f;
+	        gravityWeight = 1f;
+	        adhesionWeight = 0.69f;
 
 	        branchingProbability = 0.15f;
 
-	        ivySize = 0.2f;
+	        ivyStepDistance = 0.15f;
 
 	        ivyLeafSize = 0.1f;
 	        ivyBranchSize = 0.01f;
 			leafProbability = 0.5f;
 
-	        maxFloatLength = 0.1f;
-	        maxAdhesionDistance = 0.1f;
+	        maxFloatLength = 0.2f;
+	        maxAdhesionDistance = 0.25f;
+			maxBranchesPerRoot = 6;
+
+			minLength = 1f;
+			maxLength = 5f;
 
 			collisionMask = Physics.DefaultRaycastLayers;
 			branchMaterial = null;

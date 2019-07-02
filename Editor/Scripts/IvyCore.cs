@@ -54,12 +54,12 @@ namespace Hedera
 		// TODO:
 		// - make ivy more likely to grow
 		// - give double-sided shader
-		// - make normals always face up
+		// - make normals always face upward
 		// - ivy meshFilter / MR positions should be in the right place + parented to the IvyBehavior
 		// - plant new roots within the same graph
 		// - show capacity for vertices and tris (count nodes)... leaf mesh gen should account for full quota
 		// - are meshes being destroyed properly? maybe not
-
+		// - add undo?
 
         void OnEditorUpdate()
         {
@@ -141,7 +141,9 @@ namespace Hedera
 	    public static void GrowIvyStep(IvyGraph graph, IvyProfile ivyProfile)
         {
 			// if there are no longer any live roots, then we're dead
-			graph.isGrowing = graph.roots.Where( root => root.isAlive ).Count() > 0;
+			if ( graph.isGrowing ) {
+				graph.isGrowing = graph.roots.Where( root => root.isAlive ).Count() > 0;
+			}
 			if ( !graph.isGrowing ) {
 				return;
 			}
@@ -154,9 +156,11 @@ namespace Hedera
                     continue;
 
                 IvyNode lastnode = root.nodes[root.nodes.Count-1];
+
 		        //let the ivy die, if the maximum float length is reached
-		        if (lastnode.floatingLength > ivyProfile.maxFloatLength) 
+				if ( lastnode.length > ivyProfile.minLength && lastnode.floatingLength > ivyProfile.maxFloatLength) {
                     root.isAlive = false;
+				}
 
                 //grow vectors: primary direction, random influence, and adhesion of scene objectss
 
@@ -170,14 +174,14 @@ namespace Hedera
                 Vector3 adhesionVector = ComputeAdhesion(lastnode.pos, ivyProfile);
 
                 //compute grow vector
-                Vector3 growVector = ivyProfile.ivySize * (
+                Vector3 growVector = ivyProfile.ivyStepDistance * (
 					primaryVector * ivyProfile.primaryWeight 
 					+ randomVector * ivyProfile.randomWeight 
 					+ adhesionVector * ivyProfile.adhesionWeight
 				);
 
                 //gravity influence
-                Vector3 gravityVector = ivyProfile.ivySize * new Vector3(0.0f, -1.0f, 0.0f) * ivyProfile.gravityWeight;
+                Vector3 gravityVector = ivyProfile.ivyStepDistance * new Vector3(0.0f, -1.0f, 0.0f) * ivyProfile.gravityWeight;
 
                 //gravity depends on the floating length
                 gravityVector *= Mathf.Pow(lastnode.floatingLength / ivyProfile.maxFloatLength, 0.7f);
@@ -192,7 +196,8 @@ namespace Hedera
                 Vector3 newPos = lastnode.pos + growVector + gravityVector;
 
                 //combine alive state with result of the collision detection, e.g. let the ivy die in case of a collision detection problem
-                root.isAlive = root.isAlive && ComputeCollision(lastnode.pos, ref newPos, ref climbing, ivyProfile.collisionMask);
+                // root.isAlive = root.isAlive && 
+				ComputeCollision(lastnode.pos, ref newPos, ref climbing, ivyProfile.collisionMask);
 
                 //update grow vector due to a changed newPos
                 growVector = newPos - lastnode.pos - gravityVector;
@@ -217,21 +222,12 @@ namespace Hedera
 	        foreach (var root in graph.roots)
 	        {
 		        //process only roots that are alive
-		        if (!root.isAlive) 
+				//process only roots up to hierarchy level 3, results in a maximum hierarchy level of 4
+				//and branch only if it has a few nodes at least
+		        if (!root.isAlive || root.parents > 3 || root.nodes.Count < 3) 
                     continue;
 
-		        //process only roots up to hierarchy level 3, results in a maximum hierarchy level of 4
-		        if (root.parents > 3) {
-                    continue;
-				}
-
-				// it should grow only if it has a few nodes at least
-				if ( root.nodes.Count < 3) { 
-					continue;
-				}
-
-				if ( root.childCount > 4 ) {
-					root.isAlive = false;
+				if ( root.childCount >= ivyProfile.maxBranchesPerRoot ) {
 					continue;
 				}
 
@@ -322,8 +318,7 @@ namespace Hedera
 				RaycastHit newRayHit = new RaycastHit();
 				if ( Physics.Raycast( oldPos, newPos - oldPos, out newRayHit, Vector3.Distance(oldPos,newPos), collisionMask) )
 				{                    
-					//mirror newPos at triangle plane
-					newPos += 2.0f * newRayHit.normal * newRayHit.distance;
+					newPos += newRayHit.normal * Mathf.Max(0.1f, newRayHit.distance);
 					intersection = true;
 					isClimbing = true;
 				}

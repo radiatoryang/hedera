@@ -12,7 +12,7 @@ namespace Hedera
     {
         IvyBehavior ivyBehavior;
 
-        bool isPlantingModeActive, showGrowingEditor, showBirthEditor, generateMeshEveryStep;
+        bool isPlantingModeActive, showEditorFoldout;
 
         private Vector3 lastPos, mousePos, mouseNormal, mouseDirection;
         double lastEditorTime, deltaTime;
@@ -52,7 +52,7 @@ namespace Hedera
                 {
                     mouseDirection = Vector3.MoveTowards( mouseDirection, (mousePos - lastPos).normalized, System.Convert.ToSingle(deltaTime) );
                     lastPos = mousePos;
-                    ivyBehavior.ivyGraphs.Add( IvyCore.SeedNewIvyGraph(lastPos, mouseDirection, mouseNormal, generateMeshEveryStep) );
+                    ivyBehavior.ivyGraphs.Add( IvyCore.SeedNewIvyGraph(lastPos, mouseDirection, mouseNormal, ivyBehavior.generateMeshDuringGrowth) );
 
                 } 
                 else if (current.button == 0 && current.shift)
@@ -144,26 +144,29 @@ namespace Hedera
             //                 + "In 3D Mode you have to place root onto objects with colliders."
             //                 + " You can only place one root at the scene view position.", MessageType.Info);
 
+            
             EditorGUILayout.BeginVertical( EditorStyles.helpBox );
-            showGrowingEditor = EditorGUILayout.Foldout(showGrowingEditor, "Growth Settings");
-            if (EditorGUILayout.BeginFadeGroup(showGrowingEditor ? 1 : 0))
+            showEditorFoldout = EditorGUILayout.Foldout(showEditorFoldout, "Ivy Profile Settings");
+            if (EditorGUILayout.BeginFadeGroup(showEditorFoldout ? 1 : 0))
             {
+                GUI.changed = false;
+                EditorGUI.BeginChangeCheck();
+                GUILayout.Label("Growth", EditorStyles.boldLabel);
                 GUIContent content = null;
                 
-                content = new GUIContent("Ivy Size : ", "adapts the ivy growing and geometry to the scene size and content");
-                ivyProfile.ivySize = EditorGUILayout.Slider(content, ivyProfile.ivySize, 0, 0.5f);
+                content = new GUIContent("Ivy Step Distance", "How far the ivy tries to move each frame. (Default: 0.25)\nSmaller = more curvy, smoother, more polygons.\nLarger = more angular and fewer polygons.");
+                ivyProfile.ivyStepDistance = EditorGUILayout.Slider(content, ivyProfile.ivyStepDistance, 0, 1f);
 
-                content = new GUIContent("Primary Weight : ", "defines the weight of the primary growing direction");
-                ivyProfile.primaryWeight = EditorGUILayout.Slider(content, ivyProfile.primaryWeight, 0, 1f);
+                content = new GUIContent("Min/Max Length", "Force every branch to grow within this range. (Default: 1.0-5.0)");
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField( content, GUILayout.MaxWidth(100) );
+                ivyProfile.minLength = Mathf.Clamp(EditorGUILayout.FloatField( ivyProfile.minLength, GUILayout.MaxWidth(32) ), 0.01f, ivyProfile.maxLength-0.01f);
+                EditorGUILayout.MinMaxSlider(ref ivyProfile.minLength, ref ivyProfile.maxLength, 0.01f, 10f);
+                ivyProfile.maxLength = Mathf.Clamp(EditorGUILayout.FloatField( ivyProfile.maxLength, GUILayout.MaxWidth(32) ), ivyProfile.minLength+0.01f, 10f);
+                EditorGUILayout.EndHorizontal();
 
-                content = new GUIContent("Random Weight : ", "defines the weight of a random growing direction");
-                ivyProfile.randomWeight = EditorGUILayout.Slider(content, ivyProfile.randomWeight, 0, 1f);
-
-                content = new GUIContent("Gravity Weight : ", "defines the weight of gravity");
-                ivyProfile.gravityWeight = EditorGUILayout.Slider(content, ivyProfile.gravityWeight, 0, 2f);
-
-                content = new GUIContent("Adhesion Weight : ", "defines the weight of adhesion towards attracting surfaces");
-                ivyProfile.adhesionWeight = EditorGUILayout.Slider(content, ivyProfile.adhesionWeight, 0, 1f);
+                content = new GUIContent("Max Branches", "How many times each branch can branch.");
+                ivyProfile.maxBranchesPerRoot = EditorGUILayout.IntSlider(content, ivyProfile.maxBranchesPerRoot, 1, 16);
 
                 content = new GUIContent("Branch Probability : ", "defines the density of branching structure during growing");
                 ivyProfile.branchingProbability = EditorGUILayout.Slider(content, ivyProfile.branchingProbability, 0, 1f);
@@ -175,27 +178,39 @@ namespace Hedera
                 ivyProfile.maxAdhesionDistance = EditorGUILayout.Slider(content, ivyProfile.maxAdhesionDistance, 0, 1f);
 
                 ivyProfile.collisionMask = EditorGUILayout.MaskField("Collision Mask", InternalEditorUtility.LayerMaskToConcatenatedLayersMask(ivyProfile.collisionMask), InternalEditorUtility.layers);
-            }
-            EditorGUILayout.EndFadeGroup();
-            EditorGUILayout.EndVertical();
 
-            EditorGUILayout.BeginVertical( EditorStyles.helpBox );
-            showBirthEditor = EditorGUILayout.Foldout(showBirthEditor, "Mesh Settings");
-            if (EditorGUILayout.BeginFadeGroup(showBirthEditor ? 1 : 0))
-            {
-                GUIContent content = null;
+                GUILayout.Label("Growth Weight Influences", EditorStyles.boldLabel);
+
+                content = new GUIContent("Primary Weight %", "defines the weight of the primary growing direction");
+                ivyProfile.primaryWeight = EditorGUILayout.Slider(content, ivyProfile.primaryWeight, 0, 1f);
+
+                content = new GUIContent("Random Weight %", "defines the weight of a random growing direction");
+                ivyProfile.randomWeight = EditorGUILayout.Slider(content, ivyProfile.randomWeight, 0, 1f);
+
+                content = new GUIContent("Gravity Weight %", "defines the weight of gravity");
+                ivyProfile.gravityWeight = EditorGUILayout.Slider(content, ivyProfile.gravityWeight, 0, 2f);
+
+                content = new GUIContent("Adhesion Weight %", "defines the weight of adhesion towards attracting surfaces");
+                ivyProfile.adhesionWeight = EditorGUILayout.Slider(content, ivyProfile.adhesionWeight, 0, 1f);
+
+                GUILayout.Label("Mesh Generation", EditorStyles.boldLabel);
 
                 content = new GUIContent("Ivy Branch Width", "defines the diameter of the branch geometry relative to the ivy size");
-                ivyProfile.ivyBranchSize = EditorGUILayout.Slider(content, ivyProfile.ivyBranchSize, 0, 0.5f);
+                ivyProfile.ivyBranchSize = EditorGUILayout.Slider(content, ivyProfile.ivyBranchSize, 0, 0.25f);
     
-                content = new GUIContent("Ivy Leaf Size", "defines the diameter of the leaf geometry relative to the ivy size");
-                ivyProfile.ivyLeafSize = EditorGUILayout.Slider(content, ivyProfile.ivyLeafSize, 0, 2f);
+                content = new GUIContent("Ivy Leaf Size", "size of leaves, in world units (default: 0.05)");
+                ivyProfile.ivyLeafSize = EditorGUILayout.Slider(content, ivyProfile.ivyLeafSize, 0, 1f);
 
-                content = new GUIContent("Leaf Density", "defines the density of the leaves during geometry generation");
+                content = new GUIContent("Leaf Density", "probability of generating leaves");
                 ivyProfile.leafProbability = EditorGUILayout.Slider(content, ivyProfile.leafProbability, 0, 1f);
 
                 ivyProfile.branchMaterial = EditorGUILayout.ObjectField("Branch Material", ivyProfile.branchMaterial, typeof(Material), false) as Material;
                 ivyProfile.leafMaterial = EditorGUILayout.ObjectField("Leaf Material", ivyProfile.leafMaterial, typeof(Material), false) as Material;
+            
+                if ( EditorGUI.EndChangeCheck() ) {
+                    Undo.RecordObject(ivyBehavior.profileAsset, "Hedera > Edit Ivy Settings" );
+                    EditorUtility.SetDirty( ivyBehavior.profileAsset );
+                }
             }
             EditorGUILayout.EndFadeGroup();
             EditorGUILayout.EndVertical();
@@ -211,7 +226,7 @@ namespace Hedera
             }
             GUI.color = oldColor;
 
-            generateMeshEveryStep = EditorGUILayout.Toggle("Generate Mesh During Growth", generateMeshEveryStep);
+            ivyBehavior.generateMeshDuringGrowth = EditorGUILayout.Toggle("Generate Mesh During Growth", ivyBehavior.generateMeshDuringGrowth);
 
             if (ivyBehavior.ivyGraphs.Where( ivy => ivy.isGrowing ).Count() > 0) {
                 if ( GUILayout.Button( "Force-Stop All Growing") ) {
@@ -243,7 +258,7 @@ namespace Hedera
                     GUI.enabled = true;
                 }
                 string ivyLabel = string.Format(
-                    "{1}{2} roots", 
+                    "{1}{2} ivy", 
                     i+1, 
                     ivy.isGrowing ? "[Growing] " : "", 
                     ivy.roots.Count

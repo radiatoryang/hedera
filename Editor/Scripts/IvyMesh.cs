@@ -86,9 +86,6 @@ namespace Hedera
 
         static bool GenerateMeshData(IvyGraph ivyGraph, IvyProfile ivyProfile)
         {
-            // more deterministic randomization?
-            Random.InitState( Mathf.RoundToInt(ivyGraph.seedPos.x + ivyGraph.seedPos.y + ivyGraph.seedPos.z + ivyGraph.seedPos.magnitude) );
-
             int nodeCount = 0;
             //evolve a gaussian filter over the adhesion vectors
             float[] gaussian = { 1.0f, 2.0f, 4.0f, 7.0f, 9.0f, 10.0f, 9.0f, 7.0f, 4.0f, 2.0f, 1.0f };
@@ -135,13 +132,19 @@ namespace Hedera
             //create leafs
             foreach (var root in ivyGraph.roots)
             {
+
                 //simple multiplier, just to make it a more dense
-                for (int i = 0; i < 10; ++i)
+                for (int i = 0; i < 5; ++i)
                 {
                     //srand(i + (root - roots.begin()) * 10);
 
                     foreach (var node in root.nodes)
                     {
+                        // do not generate a leaf on a root node (it looks bad)
+                        if ( root.nodes[0] == node) {
+                            continue;
+                        }
+
                         IvyNode back_node = root.nodes[root.nodes.Count - 1];
                         //weight depending on ratio of node length to total length
                         float weight = Mathf.Pow(node.length / back_node.length, 0.7f);
@@ -151,6 +154,10 @@ namespace Hedera
                         weight += groundIvy * Mathf.Pow(1.0f - node.length / back_node.length, 2.0f);
 
                         //random influence
+                        // Random.InitState( Mathf.RoundToInt(
+                        //     ivyGraph.seedPos.x + ivyGraph.seedPos.y + ivyGraph.seedPos.z + ivyGraph.seedPos.magnitude 
+                        //     + node.pos.x + node.pos.y + node.pos.z + node.pos.magnitude
+                        // ) * (i+1) );
                         float probability = Random.value;
 
                         if (probability * weight > 1f - p.leafProbability)
@@ -165,7 +172,7 @@ namespace Hedera
                             float theta = Vector3.Angle(node.adhesionVector, new Vector3(0.0f, -1.0f, 0.0f)) * 0.5f;
 
                             //center of leaf quad
-                            Vector3 center = node.pos + Random.onUnitSphere * p.ivySize * p.ivyLeafSize;
+                            Vector3 center = node.pos + Random.onUnitSphere * p.ivyLeafSize;
 
                             //size of leaf
                             float sizeWeight = 1.5f - (Mathf.Cos(weight * 2.0f * Mathf.PI) * 0.5f + 0.5f);
