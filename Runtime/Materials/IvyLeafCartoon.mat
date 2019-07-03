@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: IvyLeafYoung
+  m_Name: IvyLeafCartoon
   m_Shader: {fileID: 4800000, guid: 1945610a320ed49449e4df109e2018cb, type: 3}
   m_ShaderKeywords: _ALPHATEST_ON _METALLICGLOSSMAP _NORMALMAP
   m_LightmapFlags: 4
@@ -20,7 +20,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BumpMap:
-        m_Texture: {fileID: 2800000, guid: 0c71b8b177c80da499bcade2c8880ade, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
@@ -40,11 +40,11 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 3273379a14eba0e4ebf168e1b8a0ebfd, type: 3}
+        m_Texture: {fileID: 2800000, guid: 1023a10e78bafc2468efeb9c4ff884f8, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
-        m_Texture: {fileID: 2800000, guid: fa53aa2775eab4b4b8a8483c703cb715, type: 3}
+        m_Texture: {fileID: 2800000, guid: 412e773507df5474d8140e0df1f4e47b, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
@@ -60,20 +60,22 @@ Material:
     - _Cutoff: 0.25
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
-    - _GlossMapScale: 0.64
+    - _GlossMapScale: 0.38
     - _Glossiness: 0.45
     - _GlossyReflections: 1
     - _Metallic: 0
     - _Mode: 1
-    - _OcclusionStrength: 0
+    - _OcclusionStrength: 1
     - _Parallax: 0.02
     - _ShakeBending: 0.69
+    - _ShakeDisplacement: 68.4
     - _ShakeTime: 0.69
+    - _ShakeWindspeed: 3
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
-    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _Color: {r: 0.31178066, g: 0.5377358, b: 0.18009079, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}

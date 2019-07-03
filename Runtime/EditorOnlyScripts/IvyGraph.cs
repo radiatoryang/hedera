@@ -86,18 +86,12 @@ namespace Hedera
 	    public Vector3 smoothAdhesionVector;
 
 	    public float length;
+		public float lengthCumulative;
 
 	    /** length at the last node that was climbing */
 	    public float floatingLength;
 
 	    public bool isClimbing;
-
-        public IvyNode()
-        {
-            isClimbing = false;
-            length = 0;
-            floatingLength = 0;
-        }
 
 		#endif
     }
@@ -144,8 +138,10 @@ namespace Hedera
 		public List<int> leafTriangles = new List<int>();
 
 		public Mesh branchMesh, leafMesh;
+		public Transform rootBehavior;
 		public GameObject rootGO;
 		public MeshFilter branchMF, leafMF;
+		public Renderer branchR, leafR;
 
 		public void ResetMeshData()
         {

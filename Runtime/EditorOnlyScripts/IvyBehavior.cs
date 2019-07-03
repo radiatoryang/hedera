@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace Hedera {
+	[HelpURL("https://github.com/radiatoryang/hedera/wiki")]
 	public class IvyBehavior : MonoBehaviour {
 		// strip out ivy generator code upon compile
 		#if UNITY_EDITOR

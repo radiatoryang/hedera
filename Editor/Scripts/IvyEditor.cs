@@ -11,6 +11,7 @@ namespace Hedera
     public class IvyEditor : Editor
     {
         IvyBehavior ivyBehavior;
+        IvyGraph currentIvyGraph;
 
         bool isPlantingModeActive, showEditorFoldout;
 
@@ -47,13 +48,17 @@ namespace Hedera
 
             if ((current.type == EventType.MouseDrag || current.type == EventType.MouseDown) )
             {
-  
                 if (current.button == 0 && (lastPos == Vector3.zero || CanDraw()) && !current.shift)
                 {
                     mouseDirection = Vector3.MoveTowards( mouseDirection, (mousePos - lastPos).normalized, System.Convert.ToSingle(deltaTime) );
                     lastPos = mousePos;
-                    ivyBehavior.ivyGraphs.Add( IvyCore.SeedNewIvyGraph(lastPos, mouseDirection, mouseNormal, ivyBehavior.generateMeshDuringGrowth) );
-
+                    if (current.type == EventType.MouseDown) {
+                        currentIvyGraph = IvyCore.SeedNewIvyGraph(lastPos, Vector3.up, -mouseNormal, ivyBehavior.transform, ivyBehavior.generateMeshDuringGrowth);
+                        currentIvyGraph.isGrowing = false;
+                        ivyBehavior.ivyGraphs.Add( currentIvyGraph );
+                    } else {
+                        IvyCore.ForceIvyGrowth( currentIvyGraph, ivyBehavior.profileAsset.ivyProfile, lastPos, mouseNormal );
+                    }
                 } 
                 else if (current.button == 0 && current.shift)
                 {
@@ -62,8 +67,13 @@ namespace Hedera
                 }
             }
 
-            if (current.type == EventType.MouseUp)
+            if (current.type == EventType.MouseUp) {
                 lastPos = Vector3.zero;
+                if ( currentIvyGraph != null) {
+                    currentIvyGraph.isGrowing = true;
+                    currentIvyGraph = null;
+                }
+            }
 
             if (Event.current.type == EventType.Layout)
             {
@@ -77,7 +87,7 @@ namespace Hedera
         { 
             float dist = Vector3.Distance(mousePos, lastPos);
 
-            if (dist >= 0.5f)
+            if (dist >= Mathf.Max(0.05f, ivyBehavior.profileAsset.ivyProfile.ivyStepDistance) )
                 return true;
             else
                 return false;
@@ -90,7 +100,7 @@ namespace Hedera
 
             if (Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity)) // TODO: layer mask
             {
-                mousePos = hit.point + hit.normal * 0.1f;
+                mousePos = hit.point + hit.normal * 0.05f;
                 mouseNormal = hit.normal;
                 // mouseRot = Quaternion.FromToRotation(Vector3.up, hit.normal);
                 Handles.color = Color.blue;
@@ -166,7 +176,7 @@ namespace Hedera
                 EditorGUILayout.EndHorizontal();
 
                 content = new GUIContent("Max Branches", "How many times each branch can branch.");
-                ivyProfile.maxBranchesPerRoot = EditorGUILayout.IntSlider(content, ivyProfile.maxBranchesPerRoot, 1, 16);
+                ivyProfile.maxBranchesPerRoot = EditorGUILayout.IntSlider(content, ivyProfile.maxBranchesPerRoot, 0, 8);
 
                 content = new GUIContent("Branch Probability : ", "defines the density of branching structure during growing");
                 ivyProfile.branchingProbability = EditorGUILayout.Slider(content, ivyProfile.branchingProbability, 0, 1f);
@@ -188,21 +198,29 @@ namespace Hedera
                 ivyProfile.randomWeight = EditorGUILayout.Slider(content, ivyProfile.randomWeight, 0, 1f);
 
                 content = new GUIContent("Gravity Weight %", "defines the weight of gravity");
-                ivyProfile.gravityWeight = EditorGUILayout.Slider(content, ivyProfile.gravityWeight, 0, 2f);
+                ivyProfile.gravityWeight = EditorGUILayout.Slider(content, ivyProfile.gravityWeight, 0, 5f);
 
                 content = new GUIContent("Adhesion Weight %", "defines the weight of adhesion towards attracting surfaces");
                 ivyProfile.adhesionWeight = EditorGUILayout.Slider(content, ivyProfile.adhesionWeight, 0, 1f);
 
                 GUILayout.Label("Mesh Generation", EditorStyles.boldLabel);
 
-                content = new GUIContent("Ivy Branch Width", "defines the diameter of the branch geometry relative to the ivy size");
-                ivyProfile.ivyBranchSize = EditorGUILayout.Slider(content, ivyProfile.ivyBranchSize, 0, 0.25f);
+                content = new GUIContent("Ivy Branch Width", "Thickness of the branches in world units. (default: 0.01)");
+                ivyProfile.ivyBranchSize = EditorGUILayout.Slider(content, ivyProfile.ivyBranchSize, 0.005f, 0.1f);
     
-                content = new GUIContent("Ivy Leaf Size", "size of leaves, in world units (default: 0.05)");
+                content = new GUIContent("Ivy Leaf Size", "Size of leaves in world units. (default: 0.2)");
                 ivyProfile.ivyLeafSize = EditorGUILayout.Slider(content, ivyProfile.ivyLeafSize, 0, 1f);
 
-                content = new GUIContent("Leaf Density", "probability of generating leaves");
+                if ( ivyProfile.ivyLeafSize == 0f ) {
+                    EditorGUILayout.HelpBox("No leaves when Leaf Size = 0.", MessageType.Warning);
+                }
+
+                content = new GUIContent("Leaf Density", "Probability of sprouting leaves at each step. A higher Ivy Step Distance will also affect leaf density. (default: 0.69)");
                 ivyProfile.leafProbability = EditorGUILayout.Slider(content, ivyProfile.leafProbability, 0, 1f);
+
+                if ( ivyProfile.leafProbability == 0f ) {
+                    EditorGUILayout.HelpBox("No leaves when Leaf Density = 0.", MessageType.Warning);
+                }
 
                 ivyProfile.branchMaterial = EditorGUILayout.ObjectField("Branch Material", ivyProfile.branchMaterial, typeof(Material), false) as Material;
                 ivyProfile.leafMaterial = EditorGUILayout.ObjectField("Leaf Material", ivyProfile.leafMaterial, typeof(Material), false) as Material;
@@ -215,8 +233,8 @@ namespace Hedera
             EditorGUILayout.EndFadeGroup();
             EditorGUILayout.EndVertical();
             EditorGUILayout.EndVertical();
-            EditorGUILayout.Separator();
 
+            GUILayout.Label("Ivy Painter", EditorStyles.boldLabel);
             // plant root creation button
             var oldColor = GUI.color;
             GUI.color = isPlantingModeActive ? Color.yellow : oldColor;
@@ -226,44 +244,68 @@ namespace Hedera
             }
             GUI.color = oldColor;
 
-            ivyBehavior.generateMeshDuringGrowth = EditorGUILayout.Toggle("Generate Mesh During Growth", ivyBehavior.generateMeshDuringGrowth);
+            ivyBehavior.generateMeshDuringGrowth = EditorGUILayout.ToggleLeft("Generate Mesh During Growth", ivyBehavior.generateMeshDuringGrowth);
 
-            if (ivyBehavior.ivyGraphs.Where( ivy => ivy.isGrowing ).Count() > 0) {
-                if ( GUILayout.Button( "Force-Stop All Growing") ) {
-                    IvyCore.ForceStopGrowing();
+            // display existing ivy
+            GUI.enabled = ivyBehavior.ivyGraphs.Count > 0;
+            EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+            if ( GUILayout.Button("Re-mesh Visible", EditorStyles.miniButtonLeft) ) {
+                if ( EditorUtility.DisplayDialog("Hedera: Remake All Meshes", "Are you sure you want to remake X meshes all at once? Warning: You can't undo this. It also might be very slow or crash your editor.", "YES!", "Maybe not...")) {
+                    foreach ( var ivy in ivyBehavior.ivyGraphs ) {
+                        if ( !ivy.rootGO.activeInHierarchy ) {
+                            continue;
+                        }
+                        IvyMesh.GenerateMesh(ivy, ivyProfile);
+                    }
                 }
             }
 
-           // display existing ivy
-            for ( int i=0; i< ivyBehavior.ivyGraphs.Count; i++ ) {
-                var ivy = ivyBehavior.ivyGraphs[i];
-                EditorGUILayout.BeginHorizontal( EditorStyles.helpBox );
-                if (GUILayout.Button("x")) {
-                    // stop growing and/or delete this ivy
-                    if ( ivy.isGrowing ) {
-                        ivy.isGrowing = false;
-                    } else {
-                        if ( ivy.rootGO != null) {
-                            DestroyImmediate( ivy.rootGO );
+            if ( GUILayout.Button("Merge Visible", EditorStyles.miniButtonRight) ) {
+                if ( EditorUtility.DisplayDialog("Hedera: Merge All Visible Ivy Strokes", "Are you sure you want to merge X ivy strokes into one? Warning: You can't undo this.", "YES!", "Maybe not...")) {
+                    // TODO: merging code
+                    foreach ( var ivy in ivyBehavior.ivyGraphs ) {
+                        if ( !ivy.rootGO.activeInHierarchy ) {
+                            continue;
                         }
-                        ivyBehavior.ivyGraphs.Remove(ivy);
-                        EditorGUILayout.EndHorizontal();
-                        i--;
-                        continue;
+    
                     }
                 }
+            }
+            EditorGUILayout.EndHorizontal();
+            GUI.enabled = true;
+
+            if ( ivyBehavior.ivyGraphs.Count == 0) {
+                EditorGUILayout.HelpBox("To paint Ivy, first click [Start Painting Ivy]... then hold down [Left Mouse Button] on a collider in the Scene view, and drag.", MessageType.Info);
+            }
+
+            var oldBGColor = GUI.backgroundColor;
+            var pulseColor = Color.Lerp( oldBGColor, Color.yellow, Mathf.PingPong( System.Convert.ToSingle(EditorApplication.timeSinceStartup) * 2f, 1f ) );
+            for ( int i=0; i< ivyBehavior.ivyGraphs.Count; i++ ) {
+                var ivy = ivyBehavior.ivyGraphs[i];
+                if ( ivy.isGrowing ) {
+                    GUI.backgroundColor = pulseColor;
+                }
+                EditorGUILayout.BeginHorizontal( EditorStyles.helpBox );
+                GUI.backgroundColor = oldBGColor;
+
                 if ( ivy.rootGO != null ) {
+                    GUI.color = ivy.rootGO.activeInHierarchy ? oldColor : Color.gray;
+                    if ( GUILayout.Button( "@", EditorStyles.miniButton, GUILayout.Width(20) )) {
+                        ivy.rootGO.SetActive( !ivy.rootGO.activeInHierarchy );
+                    }
+                    GUI.color = oldColor;
+
                     GUI.enabled = false;
                     EditorGUILayout.ObjectField( ivy.rootGO, typeof(GameObject), true);
                     GUI.enabled = true;
+                } else {
+                    string ivyLabel = string.Format(
+                        "(no mesh) {0} ivy", 
+                        ivy.roots.Count,
+                        ivy.seedPos
+                    );
+                    GUILayout.Label(ivyLabel, EditorStyles.miniLabel);
                 }
-                string ivyLabel = string.Format(
-                    "{1}{2} ivy", 
-                    i+1, 
-                    ivy.isGrowing ? "[Growing] " : "", 
-                    ivy.roots.Count
-                );
-                GUILayout.Label(ivyLabel);
                 
                 if ( !ivy.isGrowing ) {
                     if (GUILayout.Button("Make Mesh", EditorStyles.miniButtonLeft))
@@ -272,15 +314,38 @@ namespace Hedera
                         Repaint();
                     }
                     GUI.enabled = ivy.leafMesh != null && ivy.branchMesh != null;
-                    if (GUILayout.Button("Save .OBJ", EditorStyles.miniButtonRight))
+                    if (GUILayout.Button("Save .OBJ", EditorStyles.miniButtonMid))
                     {
                         // TODO: export OBJ
                     }
                     GUI.enabled = true;
+                    if (GUILayout.Button("x", EditorStyles.miniButtonRight, GUILayout.MaxWidth(16))) {
+                        // stop growing and/or delete this ivy
+                        if ( ivy.rootGO != null) {
+                            DestroyImmediate( ivy.rootGO );
+                        }
+                        ivyBehavior.ivyGraphs.Remove(ivy);
+                        EditorGUILayout.EndHorizontal();
+                        i--;
+                        continue;
+                    }
+                } else {
+                    if (GUILayout.Button("Stop Growing", EditorStyles.miniButton)) {
+                        ivy.isGrowing = false;
+                    }
                 }
                 EditorGUILayout.EndHorizontal();
             }
 
+            if (ivyBehavior.ivyGraphs.Where( ivy => ivy.isGrowing ).Count() > 0 ) {
+                EditorGUILayout.Space();
+                GUI.color = pulseColor;
+                if ( GUILayout.Button( "Force-Stop All Growing") ) {
+                    IvyCore.ForceStopGrowing();
+                }
+                GUI.color = oldColor;
+            }
+            
             EditorGUILayout.Space();
         }
 
