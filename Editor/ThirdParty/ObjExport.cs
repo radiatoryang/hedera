@@ -36,13 +36,13 @@ namespace Hedera {
 			{
 				Vector3 v = t.TransformPoint(vv);
 				numVertices++;
-				sb.Append(string.Format("v {0} {1} {2}\n",v.x,v.y,-v.z));
+				sb.Append(string.Format("v {0} {1} {2}\n",v.x,v.y,v.z));
 			}
 			sb.Append("\n");
 			foreach(Vector3 nn in m.normals) 
 			{
 				Vector3 v = r * nn;
-				sb.Append(string.Format("vn {0} {1} {2}\n",-v.x,-v.y,v.z));
+				sb.Append(string.Format("vn {0} {1} {2}\n",v.x,v.y,v.z));
 			}
 			sb.Append("\n");
 			foreach(Vector3 v in m.uv) 
@@ -68,10 +68,10 @@ namespace Hedera {
 
 		[MenuItem("Hedera/Export Selected GameObjects to .OBJ...")]
 		public static void DoObjExport () {
-			GetObjData( Selection.gameObjects );
+			SaveObjFile( Selection.gameObjects );
 		}
 		
-		public static string GetObjData(GameObject[] gameObjects, bool recenter = true, bool makeSubmeshes = false)
+		public static string SaveObjFile(GameObject[] gameObjects, bool recenter = true, bool makeSubmeshes = false)
 		{
 			if (gameObjects == null || gameObjects.Length == 0)
 			{
@@ -80,13 +80,15 @@ namespace Hedera {
 			}
 			
 			string meshName = gameObjects[0].name;
-			string fileName = EditorUtility.SaveFilePanel("Export .obj file", "", meshName, "obj");
+			string fileName = EditorUtility.SaveFilePanel("Export .obj file", Application.dataPath, meshName, "obj");
+			if ( string.IsNullOrEmpty( fileName ) ) {
+				Debug.LogWarning("ObjExport: no path specified");
+				return null;
+			}
 			
 			// start
 			StartIndex = 0;
-			
 			StringBuilder meshString = new StringBuilder();
-			
 			meshString.Append("#" + meshName + ".obj"
 							+ "\n#" + System.DateTime.Now.ToLongDateString() 
 							+ "\n#" + System.DateTime.Now.ToLongTimeString()
@@ -110,6 +112,9 @@ namespace Hedera {
 			}
 			
 			WriteToFile(meshString.ToString(), fileName);
+			if ( fileName.StartsWith ( Application.dataPath ) ) {
+				AssetDatabase.ImportAsset( "Assets/" + fileName.Substring( Application.dataPath.Length ) );
+			}
 			
 			// end
 			StartIndex = 0;

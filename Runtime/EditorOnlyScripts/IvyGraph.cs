@@ -12,27 +12,29 @@ namespace Hedera
 		public LayerMask collisionMask = -5;
         public Material branchMaterial, leafMaterial;
 
-	    public float ivyStepDistance = 0.15f;
-	    public float ivyLeafSize = 0.1f;
-	    public float ivyBranchSize = 0.01f;
+	    public float ivyStepDistance = 0.1f;
+	    public float ivyLeafSize = 0.25f;
+	    public float ivyBranchSize = 0.012f;
 
         /** maximum length of an ivy branch segment that is freely floating [0..1] */
-	    public float maxFloatLength = 0.2f;
+	    public float maxFloatLength = 1;
 
 	    /** maximum distance for adhesion of scene object [0..1] */
-	    public float maxAdhesionDistance = 0.25f;
+	    public float maxAdhesionDistance = 1f;
 
 		// force the ivy root to grow to at least this length
-		public float minLength = 1f, maxLength = 5f;
-		public int maxBranchesPerRoot = 6;
+		public float minLength = 0.5f, maxLength = 5f;
+		// public int maxBranchesPerRoot = 2;
+		public int maxBranchesTotal = 64;
 
-	    public float primaryWeight = 1f;
+	    public float primaryWeight = 0.5f;
 	    public float randomWeight = 0.5f;
-	    public float gravityWeight = 1f;
-	    public float adhesionWeight = 0.69f;
+	    public float gravityWeight = 3;
+	    public float adhesionWeight = 1f;
 
-	    public float branchingProbability = 0.15f;
+	    public float branchingProbability = 0.1f;
 	    public float leafProbability = 0.5f;
+		public float leafSunlightBonus = 1f;
 
 		public IvyProfile() {
 			ResetSettings();
@@ -40,29 +42,31 @@ namespace Hedera
 
 	    public void ResetSettings()
         {
-	        primaryWeight = 1f;
+	        primaryWeight = 0.5f;
 	        randomWeight = 0.5f;
-	        gravityWeight = 1f;
-	        adhesionWeight = 0.69f;
+	        gravityWeight = 3f;
+	        adhesionWeight = 1f;
 
-	        branchingProbability = 0.15f;
+	        branchingProbability = 0.1f;
 
-	        ivyStepDistance = 0.15f;
+	        ivyStepDistance = 0.1f;
 
-	        ivyLeafSize = 0.1f;
-	        ivyBranchSize = 0.01f;
+	        ivyLeafSize = 0.25f;
+	        ivyBranchSize = 0.012f;
 			leafProbability = 0.5f;
+			leafSunlightBonus = 1f;
 
-	        maxFloatLength = 0.2f;
-	        maxAdhesionDistance = 0.25f;
-			maxBranchesPerRoot = 6;
+	        maxFloatLength = 1f;
+	        maxAdhesionDistance = 1f;
+			// maxBranchesPerRoot = 2;
+			maxBranchesTotal = 64;
 
-			minLength = 1f;
+			minLength = 0.5f;
 			maxLength = 5f;
 
 			collisionMask = Physics.DefaultRaycastLayers;
-			branchMaterial = null;
-			leafMaterial = null;
+			//branchMaterial = null;
+			//leafMaterial = null;
         }
 
 		#endif

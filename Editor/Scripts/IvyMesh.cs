@@ -64,7 +64,7 @@ namespace Hedera
             ivyGraph.branchMesh.RecalculateNormals();
             ivyGraph.branchMesh.RecalculateTangents();
             ivyGraph.branchMF.sharedMesh = ivyGraph.branchMesh;
-            ivyGraph.branchR.sharedMaterial = ivyProfile.branchMaterial;
+            ivyGraph.branchR.sharedMaterial = ivyProfile.branchMaterial != null ? ivyProfile.branchMaterial : AssetDatabase.GetBuiltinExtraResource<Material>("Default-Diffuse.mat");
             
             // Leaves mesh
             // Debug.Log( "leafVertices: " + ivyGraph.leafVertices.Count );
@@ -86,7 +86,7 @@ namespace Hedera
                 ivyGraph.leafMesh.RecalculateNormals();
                 ivyGraph.leafMesh.RecalculateTangents();
                 ivyGraph.leafMF.sharedMesh = ivyGraph.leafMesh;
-                ivyGraph.leafR.sharedMaterial = ivyProfile.leafMaterial;
+                ivyGraph.leafR.sharedMaterial = ivyProfile.leafMaterial != null ? ivyProfile.leafMaterial : AssetDatabase.GetBuiltinExtraResource<Material>("Default-Diffuse.mat");
             } else if ( ivyGraph.leafMF != null ) {
                 Object.DestroyImmediate( ivyGraph.leafMF.gameObject );
             }
@@ -101,7 +101,7 @@ namespace Hedera
 
             foreach (var root in ivyGraph.roots)
             {
-                for (int g = 0; g < 5; ++g)
+                for (int g = 0; g < 2; ++g)
                 {
                     for (int node = 0; node < root.nodes.Count; node++)
                     {
@@ -142,7 +142,7 @@ namespace Hedera
             foreach (var root in ivyGraph.roots)
             {
                 //process only roots with more than one node
-                if (root.nodes.Count == 1) continue;
+                if (root.nodes.Count < 2 || root.nodes.Count == 1) continue;
 
                 //branch diameter depends on number of parents
                 float local_ivyBranchDiameter = 1.0f / (float)(root.parents + 1) + 0.75f;
@@ -160,6 +160,11 @@ namespace Hedera
 
                 for (int node=0; node < newPoints.Count-1; node++)
                 {
+                    if ( ivyGraph.vertices.Count >= 65531 ) {
+                        Debug.LogWarning("Hedera: ending branch generation early, reached ~65536 vertex limit on mesh " + ivyGraph.branchMesh.name + "... but this could technically be solved in Unity 2017.3+ or later with 32-bit index formats for meshes? The exercise is left to the reader.");
+                        break;
+                    }
+
                     //weight depending on ratio of node length to total length
                     float weight = 1f * node / newPoints.Count;
 
@@ -206,62 +211,59 @@ namespace Hedera
                     continue;
                 }
 
-                //simple multiplier, just to make it a more dense
+                // simple multiplier, just to make it a more dense
                 for (int i = 0; i < 1; ++i)
                 {
-                    //srand(i + (root - roots.begin()) * 10);
+                    var leafPositions = GetAllSamplePosAlongRoot( root, p.ivyLeafSize * 0.5f );
 
-                    for(int n=0; n<root.nodes.Count; n++)
+                    // for(int n=0; n<root.nodes.Count; n++)
+                    foreach ( var kvp in leafPositions ) 
                     {
+                        if ( ivyGraph.leafVertices.Count >= 65530 ) {
+                            Debug.LogWarning("Hedera: ending leaf generation early, reached ~65536 vertex limit on mesh " + ivyGraph.leafMesh.name + "... but this could technically be solved in Unity 2017.3+ or later with 32-bit index formats for meshes? The exercise is left to the reader.");
+                            break;
+                        }
+
+                        int n = kvp.Value;
+                        Vector3 newLeafPos = kvp.Key;
                         var node = root.nodes[n];
+
                         // do not generate a leaf on the first few or last few nodes
                         if ( n <= 1 || n >= root.nodes.Count-2) {
                             continue;
                         }
 
-                        //test: the probability of leaves on the ground is increased
-                        float groundedness = Mathf.Max(0.0f, -Vector3.Dot(new Vector3(0.0f, 1.0f, 0.0f), node.adhesionVector.normalized));
-                        groundedness *= 0.25f * p.leafProbability;
-                        // * Mathf.Pow(1.0f - node.length / back_node.length, 2.0f);
+                        // probability of leaves on the ground is increased
+                        float groundedness = Vector3.Dot(Vector3.down, node.adhesionVector.normalized);
+                        if ( groundedness < -0.02f ) {
+                            groundedness -= 0.1f;
+                            groundedness *= 3f;
+                        } else {
+                            groundedness = (groundedness - 0.25f) * 0.5f;
+                        }
+                        groundedness *= ivyProfile.leafSunlightBonus * p.leafProbability;
 
                         // don't spawn a leaf on top of another leaf
-                        float leafSqrSize = p.ivyLeafSize * p.ivyLeafSize * Mathf.Clamp01(1f - p.leafProbability - groundedness);
-                        if ( leafPoints.Where( leafPos => (leafPos - node.pos).sqrMagnitude < leafSqrSize).Count() > 0 ) {
+                        float leafSqrSize = p.ivyLeafSize * p.ivyLeafSize * Mathf.Clamp(1f - p.leafProbability - groundedness, 0.01f, 2f);
+                        if ( leafPoints.Where( leafPos => (leafPos - newLeafPos).sqrMagnitude < leafSqrSize).Count() > 0 ) {
                             continue;
                         }
 
-                        IvyNode back_node = root.nodes[root.nodes.Count - 1];
+                        IvyNode previousNode = root.nodes[Mathf.Max(0, n - 1)];
 
                         if (Random.value + groundedness > 1f - p.leafProbability)
                         {
                             leafPoints.Add( node.pos );
 
-                            //alignment weight depends on the adhesion "strength"
-                            // float alignmentWeight = node.adhesionVector.magnitude;
-
-                            // //horizontal angle (+ an epsilon vector, otherwise there's a problem at 0?and 90?.. mmmh)
-                            // float phi = Vector2ToPolar(new Vector2(node.smoothAdhesionVector.z, node.smoothAdhesionVector.x).normalized + new Vector2(Vector2.kEpsilon, Vector2.kEpsilon)) - Mathf.PI * 0.5f;
-
-                            // //vertical angle, trimmed by 0.5
-                            // float theta = Vector3.Angle(node.smoothAdhesionVector, new Vector3(0.0f, -1.0f, 0.0f)) * 0.5f;
-
                             //center of leaf quad
-                            Vector3 up = (node.pos - back_node.pos).normalized;
+                            Vector3 up = (newLeafPos - previousNode.pos).normalized;
                             Vector3 right = Vector3.Cross( up, node.adhesionVector );
-                            Vector3 center = node.pos - node.adhesionVector * 0.05f + (up * Random.Range(-1f, 1f) + right * Random.Range(-1f, 1f) ) * 0.25f * p.ivyLeafSize;
+                            Vector3 center = newLeafPos - node.adhesionVector * 0.05f + (up * Random.Range(-1f, 1f) + right * Random.Range(-1f, 1f) ) * 0.25f * p.ivyLeafSize;
 
                             //size of leaf
                             float sizeWeight = 1.5f - ( Mathf.Abs(Mathf.Cos(2.0f * Mathf.PI)) * 0.5f + 0.5f);
-
-                            //random influence for rotations (see AddLeafVertex)
-                            // phi += Random.Range(-0.5f, 0.5f) * (1.3f - alignmentWeight);
-                            // theta += Random.Range(-0.5f, 0.5f) * (1.1f - alignmentWeight);
-
-                            float leafSize = p.ivyLeafSize * sizeWeight;
-                            // AddLeafVertex(ivyGraph, center, new Vector3(-1f, 0f, 1f), leafSize, phi, theta);
-                            // AddLeafVertex(ivyGraph, center, new Vector3(1f, 0f, 1f), leafSize, phi, theta);
-                            // AddLeafVertex(ivyGraph, center, new Vector3(-1f, 0f, -1f), leafSize, phi, theta);
-                            // AddLeafVertex(ivyGraph, center, new Vector3(1f, 0f, -1f), leafSize, phi, theta);
+                            float leafSize = p.ivyLeafSize * sizeWeight + Random.Range(-p.ivyLeafSize, p.ivyLeafSize) * 0.1f + (p.ivyLeafSize * groundedness);
+                            leafSize = Mathf.Max( 0.01f, leafSize);
 
                             Quaternion facing = node.adhesionVector.sqrMagnitude < 0.001f ? Quaternion.identity : Quaternion.LookRotation( -node.adhesionVector, Random.onUnitSphere);
                             AddLeafVertex(ivyGraph, center, new Vector3(-1f, 1f, 0f), leafSize, facing);
@@ -304,15 +306,23 @@ namespace Hedera
             return Vector3.Cross(side1, side2).normalized;
         }
 
-        // static void AddLeafVertex(IvyGraph ivyGraph, Vector3 center, Vector3 offsetScalar, float local_ivyLeafSize, float phi, float theta)
-        // {
-        //     var tmpVertex = Vector3.zero;
-        //     tmpVertex = center + Vector3.Scale(new Vector3(local_ivyLeafSize, 0.0f, local_ivyLeafSize), offsetScalar);
-        //     tmpVertex = RotateAroundAxis(tmpVertex, center, new Vector3(0.0f, 0.0f, 1.0f), theta);
-        //     tmpVertex = RotateAroundAxis(tmpVertex, center, new Vector3(0.0f, 1.0f, 0.0f), phi);
-        //     tmpVertex += Random.onUnitSphere * local_ivyLeafSize * 0.5f;
-        //     ivyGraph.leafVertices.Add(tmpVertex);
-        // }
+        static Dictionary<Vector3, int> GetAllSamplePosAlongRoot(IvyRoot root, float leafSize) {
+            var leafList = new Dictionary<Vector3, int>();
+            float rootEndLength = root.nodes.Last().length;
+            for( float parser = leafSize; parser < rootEndLength; parser += leafSize ) {
+                var newKVP = SampleLeafPosAlongRoot( root, parser );
+                leafList.Add( newKVP.Key, newKVP.Value );
+            }
+            return leafList;
+        }
+
+        static KeyValuePair<Vector3, int> SampleLeafPosAlongRoot(IvyRoot ivyRoot, float distance) {
+            var startNode = ivyRoot.nodes.Where( node => node.length <= distance + Mathf.Epsilon).Last();
+            var endNode = ivyRoot.nodes.Where( node => node.length >= distance - Mathf.Epsilon).First();
+
+            float t = Mathf.InverseLerp( startNode.length, endNode.length, distance);
+            return new KeyValuePair<Vector3, int>(Vector3.Lerp( startNode.pos, endNode.pos, t), ivyRoot.nodes.IndexOf(startNode) );
+        }
 
         static void AddLeafVertex(IvyGraph ivyGraph, Vector3 center, Vector3 offsetScalar, float ivyLeafSize, Quaternion facing )
         {
