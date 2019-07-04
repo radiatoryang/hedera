@@ -9,6 +9,7 @@ namespace Hedera {
 		#if UNITY_EDITOR
 		public List<IvyGraph> ivyGraphs = new List<IvyGraph>();
 		public bool generateMeshDuringGrowth = true, enableGrowthSim = true;
+		public bool showProfileFoldout, showGrowthFoldout, showAIFoldout, showMeshFoldout;
 		public IvyProfileAsset profileAsset;
 
 		#endif

@@ -58,9 +58,13 @@ namespace Hedera
         }
 
 		// TODO:
-		// - erase nodes
-		// - ivy meshFilter / MR transform positions should be at seedPos
-		// - export obj should ask if you want to replace your mesh with it
+		// x ivy meshFilter / MR transform positions should be at seedPos
+		// - convert mesh to asset, move mesh data out of scene
+		// - test lightmapping
+		// - mesh children names not getting updated
+		// - profile and optimize
+		// - cartoon brush, cable brush
+		// - test build out
 
         void OnEditorUpdate()
         {
@@ -75,6 +79,9 @@ namespace Hedera
 							if ( ivy.generateMeshDuringGrowth ) {
 								IvyMesh.GenerateMesh(ivy, ivyB.profileAsset.ivyProfile);
 							}
+						}
+						if ( !ivy.isGrowing && ivyB.profileAsset.ivyProfile.markMeshAsStatic && ivy.generateMeshDuringGrowth && ivy.dirtyUV2s ) {
+							IvyMesh.GenerateMesh( ivy, ivyB.profileAsset.ivyProfile, true);
 						}
 					}
 				}
@@ -430,13 +437,15 @@ namespace Hedera
 			foreach ( var graph in graphsToMerge ) {
 				mainGraph.roots.AddRange( graph.roots );
 				mainGraph.debugLineSegmentsList.AddRange( graph.debugLineSegmentsList );
-				Undo.DestroyObjectImmediate( graph.rootGO );
+				if ( graph.rootGO != null) {
+					Undo.DestroyObjectImmediate( graph.rootGO );
+				}
 			}
 			mainGraph.debugLineSegmentsArray = mainGraph.debugLineSegmentsList.ToArray();
 
 			if ( rebuildMesh ) {
 				Undo.RegisterFullObjectHierarchyUndo( mainGraph.rootGO, "Hedera > Merge Visible");
-				IvyMesh.GenerateMesh( mainGraph, ivyProfile );
+				IvyMesh.GenerateMesh( mainGraph, ivyProfile, ivyProfile.markMeshAsStatic );
 			}
 
 			return mainGraph;

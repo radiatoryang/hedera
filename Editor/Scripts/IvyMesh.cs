@@ -32,18 +32,20 @@ namespace Hedera
 {
     public class IvyMesh
     {
-        public static void GenerateMesh(IvyGraph ivyGraph, IvyProfile ivyProfile)
+        public static void GenerateMesh(IvyGraph ivyGraph, IvyProfile ivyProfile, bool generateLightmapUVs=false)
         {
             if ( !GenerateMeshData(ivyGraph, ivyProfile) ) {
                 return;
             }
+            ivyGraph.dirtyUV2s = !generateLightmapUVs;
 
             if ( ivyGraph.rootGO == null ) {
-                ivyGraph.rootGO = new GameObject("Ivy");
-                ivyGraph.rootGO.isStatic = true;
+                ivyGraph.rootGO = new GameObject("HederaObject");
+                ivyGraph.rootGO.isStatic = ivyProfile.markMeshAsStatic;
                 ivyGraph.rootGO.transform.SetParent( ivyGraph.rootBehavior );
             }
-            ivyGraph.rootGO.name = string.Format("IvyMesh[{0}]_{1}", ivyGraph.roots.Count, ivyGraph.seedPos);
+            ivyGraph.rootGO.transform.position = ivyGraph.seedPos;
+            ivyGraph.rootGO.name = string.Format(ivyProfile.namePrefix, ivyGraph.roots.Count, ivyGraph.seedPos);
 
             // Branch mesh
             // Debug.Log( "branchVertices: " + ivyGraph.vertices.Count );
@@ -53,12 +55,15 @@ namespace Hedera
                 ivyGraph.branchMesh = new Mesh();
             }
             if ( ivyGraph.branchMF == null || ivyGraph.branchR == null) {
-                CreateIvyMeshObject(ivyGraph.rootGO, ivyGraph, ivyGraph.branchMesh, false);
+                CreateIvyMeshObject(ivyGraph, ivyProfile, ivyGraph.branchMesh, false);
             }
             ivyGraph.branchMesh.Clear();
-            ivyGraph.branchMesh.name = "Ivy" + ivyGraph.seedPos + "_Branches";
+            ivyGraph.branchMesh.name = ivyGraph.branchMF.gameObject.name;
             ivyGraph.branchMesh.SetVertices(ivyGraph.vertices);
             ivyGraph.branchMesh.SetUVs(0, ivyGraph.texCoords);
+            if ( ivyProfile.markMeshAsStatic && generateLightmapUVs ) {
+                PackBranchUV2s(ivyGraph);
+            }
             ivyGraph.branchMesh.SetTriangles(ivyGraph.triangles, 0);
             ivyGraph.branchMesh.RecalculateBounds();
             ivyGraph.branchMesh.RecalculateNormals();
@@ -74,13 +79,16 @@ namespace Hedera
                 ivyGraph.leafMesh = new Mesh();
             }
             if ( ivyGraph.leafMF == null || ivyGraph.leafR == null) {
-                CreateIvyMeshObject(ivyGraph.rootGO, ivyGraph, ivyGraph.leafMesh, true);
+                CreateIvyMeshObject(ivyGraph, ivyProfile, ivyGraph.leafMesh, true);
             } 
             ivyGraph.leafMesh.Clear();
-            ivyGraph.leafMesh.name = "Ivy" + ivyGraph.seedPos + "_Leaves";
+            ivyGraph.leafMesh.name = ivyGraph.leafMF.gameObject.name;
             if ( ivyProfile.ivyLeafSize > 0.0001f && ivyProfile.leafProbability > 0.0001f ) {
                 ivyGraph.leafMesh.SetVertices(ivyGraph.leafVertices);
                 ivyGraph.leafMesh.SetUVs(0, ivyGraph.leafUVs);
+                if ( ivyProfile.markMeshAsStatic && generateLightmapUVs ) {
+                    PackLeafUV2s( ivyGraph );
+                }
                 ivyGraph.leafMesh.SetTriangles(ivyGraph.leafTriangles, 0);
                 ivyGraph.leafMesh.RecalculateBounds();
                 ivyGraph.leafMesh.RecalculateNormals();
@@ -164,6 +172,7 @@ namespace Hedera
                         Debug.LogWarning("Hedera: ending branch generation early, reached ~65536 vertex limit on mesh " + ivyGraph.branchMesh.name + "... but this could technically be solved in Unity 2017.3+ or later with 32-bit index formats for meshes? The exercise is left to the reader.");
                         break;
                     }
+                    root.meshSegments = node+1;
 
                     //weight depending on ratio of node length to total length
                     float weight = 1f * node / newPoints.Count;
@@ -182,17 +191,19 @@ namespace Hedera
                     ivyGraph.vertices.Add(b2);
 
                     //create texCoords
-                    float texV = (node % 2 == 0 ? 1.0f : 0.0f);
+                    float texV = (node % 2 == 0 ? 1f : 0.0f); // vertical tiling
                     ivyGraph.texCoords.Add(new Vector2(0.0f, texV));
-                    ivyGraph.texCoords.Add(new Vector2(0.3f, texV));
-                    ivyGraph.texCoords.Add(new Vector2(0.6f, texV));
+                    ivyGraph.texCoords.Add(new Vector2(0.5f, texV));
+                    ivyGraph.texCoords.Add(new Vector2(1f, texV));
 
                     if (node == 0) continue;
 
                     AddTriangle(ivyGraph, 4, 1, 5);
                     AddTriangle(ivyGraph, 5, 1, 2);
+
                     AddTriangle(ivyGraph, 5, 2, 6);
                     AddTriangle(ivyGraph, 6, 2, 3);
+
                     AddTriangle(ivyGraph, 6, 3, 1);
                     AddTriangle(ivyGraph, 6, 1, 4);
                 }
@@ -294,6 +305,59 @@ namespace Hedera
                 }
             }
             return true;
+        }
+
+        static void PackLeafUV2s(IvyGraph graph) {
+            // remember: this can only happen AFTER vertices and UV1s are generated, we're packing them into a grid
+            int leafCount = graph.leafUVs.Count / 4;
+            int gridSize = Mathf.CeilToInt( Mathf.Sqrt(leafCount));
+            float gridIncrement = 1f / gridSize;
+            Vector2[] newUVs = new Vector2[graph.leafUVs.Count];
+
+            int uvCounter = 0;
+            Vector2 gridPointer = Vector2.zero;
+
+            // TODO: implement pack margin... but probably not a big deal since leaf textures are already transparent along edges
+            for( int v=0; v<gridSize; v++) {
+                for (int u=0; u<gridSize; u++) {
+                    gridPointer = new Vector2(u,v);
+                    for( int i=0; i<4 && uvCounter<newUVs.Length; i++) {
+                        newUVs[uvCounter+i] = (gridPointer + graph.leafUVs[uvCounter+i]) * gridIncrement;
+                    }
+                    uvCounter += 4;
+                }
+            }
+
+            graph.leafMesh.uv2 = newUVs;
+        }
+
+        static float branchUV2packMargin = 0.02f;
+        static void PackBranchUV2s(IvyGraph graph) {
+            // remember: this can only happen AFTER vertices and UV1s are generated, we're packing them into columns
+            var rootsWithUVs = graph.roots.Where (root => root.meshSegments > 0).ToArray();
+            int branchCount = rootsWithUVs.Length;
+            int meshSegmentCount = 0; // placeholder, will depend on root
+            float gridIncrementX = 1f / branchCount;
+            float gridIncrementY = 0f; // placeholder, will depend on root
+            Vector2[] newUVs = new Vector2[graph.texCoords.Count];
+
+            int uvCounter = 0;
+            Vector2 gridPointer = Vector2.zero;
+            Vector2 gridIncrement = Vector2.zero;
+
+            for( int u=0; u<branchCount; u++) {
+                meshSegmentCount = rootsWithUVs[u].meshSegments;
+                gridIncrementY = 1f / (meshSegmentCount-1); // segmentRow.y is always 0f, so that's why we -1 here
+                gridIncrement = new Vector2( gridIncrementX, gridIncrementY);
+                for (int v=0; v<meshSegmentCount; v++) {
+                    gridPointer = new Vector2(u, v);
+                    for( int i=0; i<3 && uvCounter<newUVs.Length; i++) {
+                        newUVs[uvCounter+i] = Vector2.Scale(gridPointer, gridIncrement) + new Vector2( (0.5f * i) * (gridIncrementX - branchUV2packMargin), 0f);
+                    }
+                    uvCounter += 3;
+                }
+            }
+            graph.branchMesh.uv2 = newUVs;
         }
 
         static Vector3 GetNormal(Vector3 a, Vector3 b, Vector3 c)
@@ -398,11 +462,12 @@ namespace Hedera
         }
 
 
-        static void CreateIvyMeshObject(GameObject rootObj, IvyGraph graph, Mesh mesh, bool isLeaves=false)
+        static void CreateIvyMeshObject(IvyGraph graph, IvyProfile profile, Mesh mesh, bool isLeaves=false)
         {
-            var PartObj = new GameObject("Ivy" + (isLeaves ? "Leaves" : "Branches") );
-            PartObj.transform.parent = rootObj.transform;
-            PartObj.isStatic = true;
+            var PartObj = new GameObject(graph.rootGO.name + (isLeaves ? "_Leaves" : "_Branches") );
+            PartObj.transform.parent = graph.rootGO.transform;
+            PartObj.transform.localPosition = Vector3.zero;
+            PartObj.isStatic = profile.markMeshAsStatic;
 
             if (!isLeaves) {
                 graph.branchMF = PartObj.AddComponent<MeshFilter>();

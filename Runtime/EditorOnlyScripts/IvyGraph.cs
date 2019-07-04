@@ -36,6 +36,9 @@ namespace Hedera
 	    public float leafProbability = 0.5f;
 		public float leafSunlightBonus = 1f;
 
+		public string namePrefix = "Ivy[{0}]{1}";
+		public bool markMeshAsStatic = false;
+
 		public IvyProfile() {
 			ResetSettings();
 		}
@@ -64,6 +67,8 @@ namespace Hedera
 			minLength = 0.5f;
 			maxLength = 5f;
 
+			namePrefix = "Ivy[{0}]{1}";
+			markMeshAsStatic = false;
 			collisionMask = Physics.DefaultRaycastLayers;
 			//branchMaterial = null;
 			//leafMaterial = null;
@@ -114,6 +119,8 @@ namespace Hedera
 		// there's a big flaw in the old algorithm or port, where roots will keep getting generated infinitely... childCount helps us kill off roots with too many children
 		public int childCount;
 
+		public int meshSegments;
+
 		#endif
     }
 
@@ -123,6 +130,7 @@ namespace Hedera
 		#if UNITY_EDITOR
 
 		public bool isGrowing = false;
+		public bool dirtyUV2s = false;
 		public Vector3 seedPos;
 		public bool generateMeshDuringGrowth = false;
 		
@@ -155,6 +163,7 @@ namespace Hedera
 			leafVertices.Clear();
 			leafUVs.Clear();
 			leafTriangles.Clear();
+			dirtyUV2s = false;
 			branchMesh = null;
 			leafMesh = null;
         }

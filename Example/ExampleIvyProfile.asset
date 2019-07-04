@@ -33,3 +33,5 @@ MonoBehaviour:
     branchingProbability: 0.5
     leafProbability: 0.5
     leafSunlightBonus: 0.25
+    namePrefix: Ivy[{0}]{1}
+    markMeshAsStatic: 1
