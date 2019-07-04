@@ -37,7 +37,8 @@ namespace Hedera
 		public float leafSunlightBonus = 1f;
 
 		public string namePrefix = "Ivy[{0}]{1}";
-		public bool markMeshAsStatic = false;
+		public bool markMeshAsStatic = true;
+		public bool useLightmapping = false;
 
 		public IvyProfile() {
 			ResetSettings();
@@ -68,7 +69,8 @@ namespace Hedera
 			maxLength = 5f;
 
 			namePrefix = "Ivy[{0}]{1}";
-			markMeshAsStatic = false;
+			markMeshAsStatic = true;
+			useLightmapping = false;
 			collisionMask = Physics.DefaultRaycastLayers;
 			//branchMaterial = null;
 			//leafMaterial = null;
@@ -82,7 +84,7 @@ namespace Hedera
     {
 		
 		#if UNITY_EDITOR
-	    public Vector3 pos;			
+	    public Vector3 localPos;			
 
 	    /** primary grow direction, a weighted sum of the previous directions */
 	    public Vector3 primaryGrowDir;

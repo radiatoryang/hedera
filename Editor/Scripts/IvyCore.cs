@@ -59,12 +59,20 @@ namespace Hedera
 
 		// TODO:
 		// x ivy meshFilter / MR transform positions should be at seedPos
-		// - convert mesh to asset, move mesh data out of scene
-		// - test lightmapping
-		// - mesh children names not getting updated
+		// x fix local/world conversions with seedPos
+		// x make sure roots have better probability LATER for branching on strokes
+		// - let user convert mesh to asset, move mesh data out of scene
+		// x test lightmapping
+		// x mesh children names not getting updated
 		// - profile and optimize
 		// - cartoon brush, cable brush
 		// - test build out
+		// - optimize ComputeAdhesion.GetVertices GC
+		// - optimise GrowIvyStep.ToArray?
+		// - GenerateMeshData.ToList
+		// - GenerateMeshData.ToArray
+		// - GenerateMeshData.AddList.EnsureCapacity
+		// - GenerateMeshData.AddTriangles
 
         void OnEditorUpdate()
         {
@@ -80,7 +88,7 @@ namespace Hedera
 								IvyMesh.GenerateMesh(ivy, ivyB.profileAsset.ivyProfile);
 							}
 						}
-						if ( !ivy.isGrowing && ivyB.profileAsset.ivyProfile.markMeshAsStatic && ivy.generateMeshDuringGrowth && ivy.dirtyUV2s ) {
+						if ( !ivy.isGrowing && ivyB.profileAsset.ivyProfile.useLightmapping && ivy.generateMeshDuringGrowth && ivy.dirtyUV2s ) {
 							IvyMesh.GenerateMesh( ivy, ivyB.profileAsset.ivyProfile, true);
 						}
 					}
@@ -142,7 +150,7 @@ namespace Hedera
 			graph.rootBehavior = root;
 
 	        IvyNode tmpNode = new IvyNode();
-	        tmpNode.pos = seedPos;
+	        tmpNode.localPos = Vector3.zero; //seedPos;
 	        tmpNode.primaryGrowDir = primaryGrowDir;
 	        tmpNode.adhesionVector = adhesionVector;
 	        tmpNode.length = 0.0f;
@@ -166,18 +174,20 @@ namespace Hedera
         }
 
 		public static void ForceIvyGrowth(IvyGraph graph, IvyProfile ivyProfile, Vector3 newPos, Vector3 newNormal) {
+			newPos -= graph.seedPos; // convert to local space
+
 			// find the nearest root end node, and continue off of it
-			var closestRoot = graph.roots.OrderBy( root => Vector3.Distance( newPos, root.nodes.Last().pos ) ).FirstOrDefault();
+			var closestRoot = graph.roots.OrderBy( root => Vector3.Distance( newPos, root.nodes.Last().localPos ) ).FirstOrDefault();
 			if ( closestRoot == null ) {
 				return;
 			}
 
 			var lastNode = closestRoot.nodes.Last();
-			var growVector = newPos - lastNode.pos;
+			var growVector = newPos - lastNode.localPos;
 
 			var newNode = new IvyNode();
 
-			newNode.pos = newPos;
+			newNode.localPos = newPos;
 			newNode.primaryGrowDir = (0.5f * lastNode.primaryGrowDir + 0.5f * growVector.normalized).normalized;
 			//newNode.adhesionVector = ComputeAdhesion( newPos, ivyProfile );
 			//if ( newNode.adhesionVector.sqrMagnitude < 0.01f ) {
@@ -189,12 +199,17 @@ namespace Hedera
 			newNode.isClimbing = true;
 
 			closestRoot.nodes.Add( newNode );
-
-			TryGrowIvyBranch( graph, ivyProfile, closestRoot, newNode );
+			// TryGrowIvyBranch( graph, ivyProfile, closestRoot, newNode );
 
 			if ( graph.generateMeshDuringGrowth ) {
 				IvyMesh.GenerateMesh( graph, ivyProfile );
 			}
+		}
+
+		public static void ForceRandomIvyBranch ( IvyGraph graph, IvyProfile ivyProfile ) {
+			var randomRoot = graph.roots[0];
+			var randomNode = randomRoot.nodes[Random.Range(0, randomRoot.nodes.Count)];
+			TryGrowIvyBranch( graph, ivyProfile, randomRoot, randomNode, true );
 		}
 
 	    public static void GrowIvyStep(IvyGraph graph, IvyProfile ivyProfile)
@@ -229,7 +244,7 @@ namespace Hedera
                 Vector3 primaryVector = Vector3.Normalize(lastNode.primaryGrowDir * 2f + Vector3.up * 0.5f);
 
                 //random influence plus a little upright vector
-				Vector3 exploreVector = lastNode.pos - root.nodes[0].pos;
+				Vector3 exploreVector = lastNode.localPos - root.nodes[0].localPos;
 				if ( exploreVector.magnitude > 1f ) {
 					exploreVector = exploreVector.normalized;
 				}
@@ -237,7 +252,7 @@ namespace Hedera
                 Vector3 randomVector = (Random.insideUnitSphere * 0.5f + exploreVector).normalized;
 
                 //adhesion influence to the nearest triangle = weighted sum of previous adhesion vectors
-                Vector3 adhesionVector = ComputeAdhesion(lastNode.pos, ivyProfile);
+                Vector3 adhesionVector = ComputeAdhesion(lastNode.localPos + graph.seedPos, ivyProfile);
 				if ( adhesionVector.sqrMagnitude <= 0.01f) {
 					adhesionVector = lastNode.adhesionVector;
 				}
@@ -261,27 +276,32 @@ namespace Hedera
                 bool climbing = false;
 
                 //compute position of next ivy node
-                Vector3 newPos = lastNode.pos + growVector + gravityVector;
+                Vector3 newPos = lastNode.localPos + growVector + gravityVector;
 
                 //combine alive state with result of the collision detection, e.g. let the ivy die in case of a collision detection problem
                 Vector3 adhesionFromRaycast = adhesionVector;
-				root.isAlive = root.isAlive && ComputeCollision( 0.01f, lastNode.pos, ref newPos, ref climbing, ref adhesionFromRaycast, ivyProfile.collisionMask);
+
+				// convert newPos to world position, just for the collision calc
+				newPos += graph.seedPos;
+				root.isAlive = root.isAlive && ComputeCollision( 0.01f, lastNode.localPos + graph.seedPos, ref newPos, ref climbing, ref adhesionFromRaycast, ivyProfile.collisionMask);
+				newPos -= graph.seedPos;
 
                 //update grow vector due to a changed newPos
-                growVector = newPos - lastNode.pos - gravityVector;
+                growVector = newPos - lastNode.localPos - gravityVector;
 
-				graph.debugLineSegmentsList.Add(lastNode.pos);
-				graph.debugLineSegmentsList.Add(newPos);
+				// +graph.seedPos to convert back to world space
+				graph.debugLineSegmentsList.Add(lastNode.localPos + graph.seedPos);
+				graph.debugLineSegmentsList.Add(newPos + graph.seedPos);
 
                 //create next ivy node
                 IvyNode newNode = new IvyNode();
 
-                newNode.pos = newPos;
+                newNode.localPos = newPos;
                 newNode.primaryGrowDir = (0.5f * lastNode.primaryGrowDir + 0.5f * growVector.normalized).normalized;
                 newNode.adhesionVector = adhesionVector; //Vector3.Lerp(adhesionVector, adhesionFromRaycast, 0.5f);
-                newNode.length = lastNode.length + (newPos - lastNode.pos).magnitude;
-				newNode.lengthCumulative = lastNode.lengthCumulative + (newPos - lastNode.pos).magnitude;
-                newNode.floatingLength = climbing ? 0.0f : lastNode.floatingLength + (newPos - lastNode.pos).magnitude;
+                newNode.length = lastNode.length + (newPos - lastNode.localPos).magnitude;
+				newNode.lengthCumulative = lastNode.lengthCumulative + (newPos - lastNode.localPos).magnitude;
+                newNode.floatingLength = climbing ? 0.0f : lastNode.floatingLength + (newPos - lastNode.localPos).magnitude;
                 newNode.isClimbing = climbing;
 
 		        root.nodes.Add( newNode );
@@ -296,24 +316,26 @@ namespace Hedera
 			graph.debugLineSegmentsArray = graph.debugLineSegmentsList.ToArray();
         }
 
-		static bool TryGrowIvyBranch (IvyGraph graph, IvyProfile ivyProfile, IvyRoot root, IvyNode fromNode) {
+		static bool TryGrowIvyBranch (IvyGraph graph, IvyProfile ivyProfile, IvyRoot root, IvyNode fromNode, bool forceBranch=false) {
 			//weight depending on ratio of node length to total length
-			float weight = 1.0f - ( Mathf.Cos( fromNode.length / root.nodes[root.nodes.Count-1].length * 2.0f * Mathf.PI) * 0.5f + 0.5f );
-			var nearbyRootCount = graph.roots.Where( r => (r.nodes[0].pos - fromNode.pos).sqrMagnitude < ivyProfile.ivyStepDistance ).Count();
-			if ( graph.roots.Count >= ivyProfile.maxBranchesTotal 
-				|| nearbyRootCount > ivyProfile.branchingProbability * 3f
-				|| root.childCount > ivyProfile.branchingProbability * 3f
-				|| root.nodes.Count < 3
-				|| root.parents > ivyProfile.branchingProbability * 8f
-				|| ivyProfile.maxLength - fromNode.lengthCumulative < ivyProfile.minLength 
-				|| Random.value * Mathf.Clamp(weight, 0f, 1f - ivyProfile.branchingProbability) > Mathf.Pow(ivyProfile.branchingProbability, 1.5f )
-			) {
-				return false;
+			float weight = 1f; //Mathf.PerlinNoise( fromNode.localPos.x + fromNode.lengthCumulative, fromNode.length + fromNode.localPos.y + fromNode.localPos.z); // - ( Mathf.Cos( fromNode.length / root.nodes[root.nodes.Count-1].length * 2.0f * Mathf.PI) * 0.5f + 0.5f );
+			var nearbyRootCount = graph.roots.Where( r => (r.nodes[0].localPos - fromNode.localPos).sqrMagnitude < ivyProfile.ivyStepDistance ).Count();
+			if (!forceBranch ) {
+				if ( graph.roots.Count >= ivyProfile.maxBranchesTotal 
+					|| nearbyRootCount > ivyProfile.branchingProbability * 2f
+					|| root.childCount > ivyProfile.branchingProbability * 3f
+					|| root.nodes.Count < 3
+					|| root.parents > ivyProfile.branchingProbability * 8f
+					|| ivyProfile.maxLength - fromNode.lengthCumulative < ivyProfile.minLength 
+					|| Random.value * Mathf.Clamp(weight, 0f, 1f - ivyProfile.branchingProbability) > Mathf.Pow(ivyProfile.branchingProbability, 1.5f )
+				) {
+					return false;
+				}
 			}
 
 			//new ivy node
 			IvyNode newRootNode = new IvyNode();
-			newRootNode.pos = fromNode.pos;
+			newRootNode.localPos = fromNode.localPos;
 			newRootNode.primaryGrowDir = Vector3.Lerp( fromNode.primaryGrowDir, Vector3.up, 0.5f).normalized;
 			newRootNode.adhesionVector = fromNode.adhesionVector;
 			newRootNode.length = 0.0f;
@@ -435,6 +457,12 @@ namespace Hedera
 			graphsToMerge.Remove(mainGraph);
 
 			foreach ( var graph in graphsToMerge ) {
+				// convert merged graph's localPos to mainGraph's localPos
+				foreach ( var root in graph.roots ) {
+					foreach ( var node in root.nodes ) {
+						node.localPos += graph.seedPos - mainGraph.seedPos;
+					}
+				}
 				mainGraph.roots.AddRange( graph.roots );
 				mainGraph.debugLineSegmentsList.AddRange( graph.debugLineSegmentsList );
 				if ( graph.rootGO != null) {
@@ -445,7 +473,7 @@ namespace Hedera
 
 			if ( rebuildMesh ) {
 				Undo.RegisterFullObjectHierarchyUndo( mainGraph.rootGO, "Hedera > Merge Visible");
-				IvyMesh.GenerateMesh( mainGraph, ivyProfile, ivyProfile.markMeshAsStatic );
+				IvyMesh.GenerateMesh( mainGraph, ivyProfile, ivyProfile.useLightmapping );
 			}
 
 			return mainGraph;

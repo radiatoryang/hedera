@@ -30,8 +30,9 @@ MonoBehaviour:
     randomWeight: 1
     gravityWeight: 3
     adhesionWeight: 0.5
-    branchingProbability: 0.5
-    leafProbability: 0.5
-    leafSunlightBonus: 0.25
+    branchingProbability: 0.33
+    leafProbability: 0.56
+    leafSunlightBonus: 1
     namePrefix: Ivy[{0}]{1}
     markMeshAsStatic: 1
+    useLightmapping: 0

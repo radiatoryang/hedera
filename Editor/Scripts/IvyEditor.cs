@@ -89,6 +89,13 @@ namespace Hedera
                 lastPos = Vector3.zero;
                 if ( currentIvyGraph != null) {
                     currentIvyGraph.isGrowing = ivyBehavior.enableGrowthSim;
+                    if ( currentIvyGraph.isGrowing ) {
+                        float branchPercentage = currentIvyGraph.roots[0].nodes.Last().lengthCumulative / ivyBehavior.profileAsset.ivyProfile.maxLength;
+                        int branchCount = Mathf.CeilToInt(ivyBehavior.profileAsset.ivyProfile.maxBranchesTotal * branchPercentage * Mathf.Pow(ivyBehavior.profileAsset.ivyProfile.branchingProbability, 2f));
+                        for( int b=0; b<branchCount; b++) {
+                            IvyCore.ForceRandomIvyBranch( currentIvyGraph, ivyBehavior.profileAsset.ivyProfile );
+                        }
+                    }
                     currentIvyGraph = null;
                 }
             }
@@ -265,8 +272,11 @@ namespace Hedera
                     content = new GUIContent("Name Format", "All 3D ivy object names use this template, with numbered placeholders to fill-in data.\n{0}: branch count\n{1}: seed position\n(default: 'Ivy[{0}]{1}')");
                     ivyProfile.namePrefix = EditorGUILayout.DelayedTextField(content, ivyProfile.namePrefix);
 
-                    content = new GUIContent("Mark as Static", "When ivy is static, it can use static batching and lightmapping for big performance gains. But by default, Unity doesn't mark new objects as static.\n(default: false)\nIf enabled, Hedera will also unwrap lightmap UV2s for the mesh.");
+                    content = new GUIContent("Batching Static", "Set ivy meshes to 'batch' draw calls for huge performance gains. Always enable this unless you're moving / rotating / scaling the ivy during the game.\n(default: true)");
                     ivyProfile.markMeshAsStatic = EditorGUILayout.Toggle( content, ivyProfile.markMeshAsStatic );
+
+                    content = new GUIContent("Lighting Static", "Set ivy meshes to use lightmapping AND generate lightmap UV2s for the ivy.\n- Make sure your lightmap luxel resolution is high enough, or else it'll probably look very spotty.\n- Also make sure your lightmap atlas size is big enough, or else the lightmapped ivy won't batch.\n(default: false)");
+                    ivyProfile.useLightmapping = EditorGUILayout.Toggle( content, ivyProfile.useLightmapping );
 
                     content = new GUIContent("Branch Thickness", "Width of the branch meshes in world units. (default: 0.012)");
                     ivyProfile.ivyBranchSize = EditorGUILayout.Slider(content, ivyProfile.ivyBranchSize, 0.005f, 0.25f);
@@ -334,14 +344,14 @@ namespace Hedera
             GUI.enabled = visibleIvy > 0;
             EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
             content = new GUIContent(" Re-mesh Visible", iconMesh, "Remake meshes for all visible ivy, all at once. Useful when you change your ivy profile settings, and want to see the new changes.");
-            if ( GUILayout.Button(content, EditorStyles.miniButtonLeft, GUILayout.Height(16)) ) {
+            if ( GUILayout.Button(content, EditorStyles.miniButtonLeft, GUILayout.MaxWidth(EditorGUIUtility.currentViewWidth * 0.45f), GUILayout.Height(16)) ) {
                 if ( EditorUtility.DisplayDialog("Hedera: Remake All Visible Meshes", string.Format("Are you sure you want to remake {0} meshes all at once? It also might be very slow or crash your editor.", visibleIvy), "YES!", "Maybe not...")) {
                     foreach ( var ivy in ivyBehavior.ivyGraphs ) {
                         if ( !ivy.rootGO.activeInHierarchy ) {
                             continue;
                         }
                         Undo.RegisterFullObjectHierarchyUndo( ivy.rootGO, "Hedera > Re-mesh Visible" );
-                        IvyMesh.GenerateMesh(ivy, ivyProfile, ivyProfile.markMeshAsStatic);
+                        IvyMesh.GenerateMesh(ivy, ivyProfile, ivyProfile.useLightmapping);
                     }
                 }
             }
@@ -413,7 +423,7 @@ namespace Hedera
                     if (GUILayout.Button(content, EditorStyles.miniButtonLeft, GUILayout.Width(24), GUILayout.Height(16)))
                     {
                         Undo.RegisterFullObjectHierarchyUndo( ivy.rootGO, "Hedera > Make Mesh" );
-                        IvyMesh.GenerateMesh(ivy, ivyProfile, ivyProfile.markMeshAsStatic);
+                        IvyMesh.GenerateMesh(ivy, ivyProfile, ivyProfile.useLightmapping);
                         Repaint();
                     }
                     GUI.enabled = ivy.leafMesh != null && ivy.branchMesh != null;

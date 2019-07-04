@@ -41,10 +41,14 @@ namespace Hedera
 
             if ( ivyGraph.rootGO == null ) {
                 ivyGraph.rootGO = new GameObject("HederaObject");
-                ivyGraph.rootGO.isStatic = ivyProfile.markMeshAsStatic;
                 ivyGraph.rootGO.transform.SetParent( ivyGraph.rootBehavior );
             }
-            ivyGraph.rootGO.transform.position = ivyGraph.seedPos;
+            SetStaticEditorFlag( ivyGraph.rootGO, StaticEditorFlags.BatchingStatic, ivyProfile.markMeshAsStatic );
+            SetStaticEditorFlag( ivyGraph.rootGO, StaticEditorFlags.LightmapStatic, ivyProfile.useLightmapping );
+            var rootTrans = ivyGraph.rootGO.transform;
+            rootTrans.position = ivyGraph.seedPos;
+            rootTrans.rotation = Quaternion.identity;
+            rootTrans.localScale = Vector3.one;
             ivyGraph.rootGO.name = string.Format(ivyProfile.namePrefix, ivyGraph.roots.Count, ivyGraph.seedPos);
 
             // Branch mesh
@@ -57,11 +61,19 @@ namespace Hedera
             if ( ivyGraph.branchMF == null || ivyGraph.branchR == null) {
                 CreateIvyMeshObject(ivyGraph, ivyProfile, ivyGraph.branchMesh, false);
             }
+            SetStaticEditorFlag( ivyGraph.branchMF.gameObject, StaticEditorFlags.BatchingStatic, ivyProfile.markMeshAsStatic );
+            SetStaticEditorFlag( ivyGraph.branchMF.gameObject, StaticEditorFlags.LightmapStatic, ivyProfile.useLightmapping );
+            var branchTrans = ivyGraph.branchMF.transform;
+            branchTrans.localPosition = Vector3.zero;
+            branchTrans.localRotation = Quaternion.identity;
+            branchTrans.localScale = Vector3.one;
+
             ivyGraph.branchMesh.Clear();
-            ivyGraph.branchMesh.name = ivyGraph.branchMF.gameObject.name;
+            ivyGraph.branchMF.name = ivyGraph.rootGO.name + "_Branches";
+            ivyGraph.branchMesh.name = ivyGraph.branchMF.name;
             ivyGraph.branchMesh.SetVertices(ivyGraph.vertices);
             ivyGraph.branchMesh.SetUVs(0, ivyGraph.texCoords);
-            if ( ivyProfile.markMeshAsStatic && generateLightmapUVs ) {
+            if ( ivyProfile.useLightmapping && generateLightmapUVs ) {
                 PackBranchUV2s(ivyGraph);
             }
             ivyGraph.branchMesh.SetTriangles(ivyGraph.triangles, 0);
@@ -81,12 +93,20 @@ namespace Hedera
             if ( ivyGraph.leafMF == null || ivyGraph.leafR == null) {
                 CreateIvyMeshObject(ivyGraph, ivyProfile, ivyGraph.leafMesh, true);
             } 
+            SetStaticEditorFlag( ivyGraph.leafMF.gameObject, StaticEditorFlags.BatchingStatic, ivyProfile.markMeshAsStatic );
+            SetStaticEditorFlag( ivyGraph.leafMF.gameObject, StaticEditorFlags.LightmapStatic, ivyProfile.useLightmapping );
+            var leafTrans = ivyGraph.leafMF.transform;
+            leafTrans.localPosition = Vector3.zero;
+            leafTrans.localRotation = Quaternion.identity;
+            leafTrans.localScale = Vector3.one;
+
             ivyGraph.leafMesh.Clear();
-            ivyGraph.leafMesh.name = ivyGraph.leafMF.gameObject.name;
+            ivyGraph.leafMF.name = ivyGraph.rootGO.name + "_Leaves";
+            ivyGraph.leafMesh.name = ivyGraph.leafMF.name;
             if ( ivyProfile.ivyLeafSize > 0.0001f && ivyProfile.leafProbability > 0.0001f ) {
                 ivyGraph.leafMesh.SetVertices(ivyGraph.leafVertices);
                 ivyGraph.leafMesh.SetUVs(0, ivyGraph.leafUVs);
-                if ( ivyProfile.markMeshAsStatic && generateLightmapUVs ) {
+                if ( ivyProfile.useLightmapping && generateLightmapUVs ) {
                     PackLeafUV2s( ivyGraph );
                 }
                 ivyGraph.leafMesh.SetTriangles(ivyGraph.leafTriangles, 0);
@@ -156,7 +176,7 @@ namespace Hedera
                 float local_ivyBranchDiameter = 1.0f / (float)(root.parents + 1) + 0.75f;
 
                 // generate simplified points for each root, to make it less wavy AND save tris
-                var allPoints = root.nodes.Select( node => node.pos).ToList();
+                var allPoints = root.nodes.Select( node => node.localPos).ToList();
                 var newPoints = allPoints.ToArray().ToList();
                 if ( !root.isAlive ) {
                     LineUtility.Simplify( allPoints, 0.04f, newPoints);
@@ -255,19 +275,30 @@ namespace Hedera
                         groundedness *= ivyProfile.leafSunlightBonus * p.leafProbability;
 
                         // don't spawn a leaf on top of another leaf
+                        bool badLeafPos = false;
                         float leafSqrSize = p.ivyLeafSize * p.ivyLeafSize * Mathf.Clamp(1f - p.leafProbability - groundedness, 0.01f, 2f);
-                        if ( leafPoints.Where( leafPos => (leafPos - newLeafPos).sqrMagnitude < leafSqrSize).Count() > 0 ) {
+                        for(int f=0; f<leafPoints.Count; f++) {
+                            if ( Vector3.SqrMagnitude(leafPoints[f] - newLeafPos) < leafSqrSize ) {
+                                badLeafPos = true;
+                                break;
+                            }
+                        }
+                        if ( badLeafPos ) {
                             continue;
                         }
+                        // oops this is very bad apparently, unrolled it into a for() loop
+                        // if ( leafPoints.Where( leafPos => (leafPos - newLeafPos).sqrMagnitude < leafSqrSize).Count() > 0 ) {
+                        //     continue;
+                        // }
 
                         IvyNode previousNode = root.nodes[Mathf.Max(0, n - 1)];
 
                         if (Random.value + groundedness > 1f - p.leafProbability)
                         {
-                            leafPoints.Add( node.pos );
+                            leafPoints.Add( node.localPos );
 
                             //center of leaf quad
-                            Vector3 up = (newLeafPos - previousNode.pos).normalized;
+                            Vector3 up = (newLeafPos - previousNode.localPos).normalized;
                             Vector3 right = Vector3.Cross( up, node.adhesionVector );
                             Vector3 center = newLeafPos - node.adhesionVector * 0.05f + (up * Random.Range(-1f, 1f) + right * Random.Range(-1f, 1f) ) * 0.25f * p.ivyLeafSize;
 
@@ -331,7 +362,7 @@ namespace Hedera
             graph.leafMesh.uv2 = newUVs;
         }
 
-        static float branchUV2packMargin = 0.02f;
+        static float branchUV2packMargin = 0.01f;
         static void PackBranchUV2s(IvyGraph graph) {
             // remember: this can only happen AFTER vertices and UV1s are generated, we're packing them into columns
             var rootsWithUVs = graph.roots.Where (root => root.meshSegments > 0).ToArray();
@@ -370,22 +401,32 @@ namespace Hedera
             return Vector3.Cross(side1, side2).normalized;
         }
 
+        static Dictionary<Vector3, int> leafList = new Dictionary<Vector3, int>(1024);
         static Dictionary<Vector3, int> GetAllSamplePosAlongRoot(IvyRoot root, float leafSize) {
-            var leafList = new Dictionary<Vector3, int>();
-            float rootEndLength = root.nodes.Last().length;
-            for( float parser = leafSize; parser < rootEndLength; parser += leafSize ) {
-                var newKVP = SampleLeafPosAlongRoot( root, parser );
-                leafList.Add( newKVP.Key, newKVP.Value );
+            leafList.Clear();
+            float rootEndLength = root.nodes[root.nodes.Count-1].length;
+            for( float pointer = leafSize; pointer < rootEndLength; pointer += leafSize ) {
+                AddLeafPosAlongRoot( root, pointer );
             }
             return leafList;
         }
 
-        static KeyValuePair<Vector3, int> SampleLeafPosAlongRoot(IvyRoot ivyRoot, float distance) {
-            var startNode = ivyRoot.nodes.Where( node => node.length <= distance + Mathf.Epsilon).Last();
-            var endNode = ivyRoot.nodes.Where( node => node.length >= distance - Mathf.Epsilon).First();
+        static void AddLeafPosAlongRoot(IvyRoot ivyRoot, float distance) {
+            int startNodeIndex = 0, endNodeIndex = -1;
+            for (int i=0; i<ivyRoot.nodes.Count; i++) {
+                if ( ivyRoot.nodes[i].length <= distance + Mathf.Epsilon ) {
+                    startNodeIndex = i;
+                }
+                if ( endNodeIndex < 0 && ivyRoot.nodes[i].length >= distance - Mathf.Epsilon ) {
+                    endNodeIndex = i;
+                }
+            }
 
-            float t = Mathf.InverseLerp( startNode.length, endNode.length, distance);
-            return new KeyValuePair<Vector3, int>(Vector3.Lerp( startNode.pos, endNode.pos, t), ivyRoot.nodes.IndexOf(startNode) );
+            float t = Mathf.InverseLerp( ivyRoot.nodes[startNodeIndex].length, ivyRoot.nodes[endNodeIndex].length, distance);
+            leafList.Add( 
+                Vector3.Lerp( ivyRoot.nodes[startNodeIndex].localPos, ivyRoot.nodes[endNodeIndex].localPos, t), 
+                startNodeIndex 
+            );
         }
 
         static void AddLeafVertex(IvyGraph ivyGraph, Vector3 center, Vector3 offsetScalar, float ivyLeafSize, Quaternion facing )
@@ -464,10 +505,9 @@ namespace Hedera
 
         static void CreateIvyMeshObject(IvyGraph graph, IvyProfile profile, Mesh mesh, bool isLeaves=false)
         {
-            var PartObj = new GameObject(graph.rootGO.name + (isLeaves ? "_Leaves" : "_Branches") );
+            var PartObj = new GameObject("HederaMesh");
             PartObj.transform.parent = graph.rootGO.transform;
             PartObj.transform.localPosition = Vector3.zero;
-            PartObj.isStatic = profile.markMeshAsStatic;
 
             if (!isLeaves) {
                 graph.branchMF = PartObj.AddComponent<MeshFilter>();
@@ -478,6 +518,24 @@ namespace Hedera
                 graph.leafMF.sharedMesh = mesh;
                 graph.leafR = PartObj.AddComponent<MeshRenderer>();
             }
+        }
+
+        // from https://forum.unity.com/threads/how-to-set-use-staticeditorflags-cant-seem-to-set-them-from-script.137024/#post-3721513
+        // thanks, hungrybelome!
+        static void SetStaticEditorFlag(GameObject obj, StaticEditorFlags flag, bool shouldEnable)
+        {
+            var currentFlags = GameObjectUtility.GetStaticEditorFlags(obj);
+ 
+            if (shouldEnable)
+            {
+                currentFlags |= flag;
+            }
+            else
+            {
+                currentFlags &= ~flag;
+            }
+           
+            GameObjectUtility.SetStaticEditorFlags(obj, currentFlags);
         }
 
     }
