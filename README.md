@@ -7,7 +7,7 @@
 - vert counts and polycounts usually < 5k unless you paint a lot of ivy; [download sample .OBJ here]
     - merge multiple ivy meshes to save draw calls, or just let static batching work
     - automatically unwrap ivy UV2s for lightmapping
-    - store meshes in your scene file or as a separate asset, or even export to .OBJ
+    - store meshes in your scene file, as a prefab, or even export to .OBJ
 - tutorial and user documentation is on the [Wiki](https://github.com/radiatoryang/hedera/wiki)
 - tested on Unity 2019.1.8 and MacBook Pro 2017 (but probably works ok on older Unity versions)
 
