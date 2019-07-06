@@ -13,8 +13,8 @@ namespace Hedera
         public Material branchMaterial, leafMaterial;
 
 	    public float ivyStepDistance = 0.1f;
-	    public float ivyLeafSize = 0.25f;
-	    public float ivyBranchSize = 0.012f;
+	    public float ivyLeafSize = 0.15f;
+	    public float ivyBranchSize = 0.05f;
 
         /** maximum length of an ivy branch segment that is freely floating [0..1] */
 	    public float maxFloatLength = 1;
@@ -35,6 +35,8 @@ namespace Hedera
 	    public float branchingProbability = 0.1f;
 	    public float leafProbability = 0.5f;
 		public float leafSunlightBonus = 1f;
+		public float branchOptimize = 0.6f;
+		public int branchSmooth = 2;
 
 		public string namePrefix = "Ivy[{0}]{1}";
 		public bool markMeshAsStatic = true;
@@ -55,10 +57,12 @@ namespace Hedera
 
 	        ivyStepDistance = 0.1f;
 
-	        ivyLeafSize = 0.25f;
-	        ivyBranchSize = 0.012f;
+	        ivyLeafSize = 0.15f;
+	        ivyBranchSize = 0.05f;
 			leafProbability = 0.5f;
 			leafSunlightBonus = 1f;
+			branchOptimize = 0.6f;
+			branchSmooth = 2;
 
 	        maxFloatLength = 1f;
 	        maxAdhesionDistance = 1f;
@@ -121,7 +125,19 @@ namespace Hedera
 		// there's a big flaw in the old algorithm or port, where roots will keep getting generated infinitely... childCount helps us kill off roots with too many children
 		public int childCount;
 
+		public float forceMinLength = -1f;
+
 		public int meshSegments;
+		public List<Vector3> leafPoints = new List<Vector3>();
+		public bool useCachedBranchData = false, useCachedLeafData = false;
+
+		public List<Vector3> vertices = new List<Vector3>();
+	    public List<Vector2> texCoords = new List<Vector2>();
+	    public List<int> triangles = new List<int>();
+
+		public List<Vector3> leafVertices = new List<Vector3>();
+		public List<Vector2> leafUVs = new List<Vector2>();
+		public List<int> leafTriangles = new List<int>();
 
 		#endif
     }
@@ -132,6 +148,7 @@ namespace Hedera
 		#if UNITY_EDITOR
 
 		public bool isGrowing = false;
+		public bool isVisible = true;
 		public bool dirtyUV2s = false;
 		public Vector3 seedPos;
 		public bool generateMeshDuringGrowth = false;
@@ -143,13 +160,13 @@ namespace Hedera
 	    [HideInInspector] public List<IvyRoot> roots = new List<IvyRoot>();	
 
 		// ivy mesh data
-		public List<Vector3> vertices = new List<Vector3>();
-	    public List<Vector2> texCoords = new List<Vector2>();
-	    public List<int> triangles = new List<int>();
+		// public List<Vector3> vertices = new List<Vector3>();
+	    // public List<Vector2> texCoords = new List<Vector2>();
+	    // public List<int> triangles = new List<int>();
 
-		public List<Vector3> leafVertices = new List<Vector3>();
-		public List<Vector2> leafUVs = new List<Vector2>();
-		public List<int> leafTriangles = new List<int>();
+		// public List<Vector3> leafVertices = new List<Vector3>();
+		// public List<Vector2> leafUVs = new List<Vector2>();
+		// public List<int> leafTriangles = new List<int>();
 
 		public Mesh branchMesh, leafMesh;
 		public Transform rootBehavior;
@@ -159,12 +176,12 @@ namespace Hedera
 
 		public void ResetMeshData()
         {
-	        vertices.Clear();
-            texCoords.Clear();
-            triangles.Clear();
-			leafVertices.Clear();
-			leafUVs.Clear();
-			leafTriangles.Clear();
+	        // vertices.Clear();
+            // texCoords.Clear();
+            // triangles.Clear();
+			// leafVertices.Clear();
+			// leafUVs.Clear();
+			// leafTriangles.Clear();
 			dirtyUV2s = false;
 			branchMesh = null;
 			leafMesh = null;

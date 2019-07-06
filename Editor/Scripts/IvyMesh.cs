@@ -27,18 +27,21 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using Hedera.SimplifyCSharp;
 
 namespace Hedera
 {
     public class IvyMesh
     {
-        public static void GenerateMesh(IvyGraph ivyGraph, IvyProfile ivyProfile, bool generateLightmapUVs=false)
-        {
-            if ( !GenerateMeshData(ivyGraph, ivyProfile) ) {
-                return;
-            }
-            ivyGraph.dirtyUV2s = !generateLightmapUVs;
 
+		static List<Vector3> verticesAll = new List<Vector3>(4096);
+	    static List<Vector2> texCoordsAll = new List<Vector2>(4096);
+	    static List<int> trianglesAll = new List<int>(4096);
+		static List<Vector3> leafVerticesAll = new List<Vector3>(8192);
+		static List<Vector2> leafUVsAll = new List<Vector2>(8192);
+		static List<int> leafTrianglesAll = new List<int>(8192);
+
+        public static void InitOrRefreshRoot(IvyGraph ivyGraph, IvyProfile ivyProfile) {
             if ( ivyGraph.rootGO == null ) {
                 ivyGraph.rootGO = new GameObject("HederaObject");
                 ivyGraph.rootGO.transform.SetParent( ivyGraph.rootBehavior );
@@ -50,10 +53,30 @@ namespace Hedera
             rootTrans.rotation = Quaternion.identity;
             rootTrans.localScale = Vector3.one;
             ivyGraph.rootGO.name = string.Format(ivyProfile.namePrefix, ivyGraph.roots.Count, ivyGraph.seedPos);
+        }
 
+        public static void GenerateMesh(IvyGraph ivyGraph, IvyProfile ivyProfile, bool generateLightmapUVs=false, bool forceGeneration = false)
+        {
+            verticesAll.Clear();
+            texCoordsAll.Clear();
+            trianglesAll.Clear();
+            leafVerticesAll.Clear();
+            leafUVsAll.Clear();
+            leafTrianglesAll.Clear();
+
+            if ( !GenerateMeshData(ivyGraph, ivyProfile, forceGeneration) ) {
+                return;
+            }
+            ivyGraph.dirtyUV2s = !generateLightmapUVs;
+
+            InitOrRefreshRoot( ivyGraph, ivyProfile );
             // Branch mesh
             // Debug.Log( "branchVertices: " + ivyGraph.vertices.Count );
             // Debug.Log( "branchTris: " + string.Join(", ", ivyGraph.triangles.Select( tri => tri.ToString() ).ToArray()) );
+            // foreach ( var vert in verticesAll ) {
+            //     Debug.DrawRay( vert + ivyGraph.seedPos, Vector3.up, Color.cyan, 1f, false );
+            // }
+
 
             if ( ivyGraph.branchMesh == null) {
                 ivyGraph.branchMesh = new Mesh();
@@ -71,12 +94,12 @@ namespace Hedera
             ivyGraph.branchMesh.Clear();
             ivyGraph.branchMF.name = ivyGraph.rootGO.name + "_Branches";
             ivyGraph.branchMesh.name = ivyGraph.branchMF.name;
-            ivyGraph.branchMesh.SetVertices(ivyGraph.vertices);
-            ivyGraph.branchMesh.SetUVs(0, ivyGraph.texCoords);
+            ivyGraph.branchMesh.SetVertices( verticesAll);
+            ivyGraph.branchMesh.SetUVs(0, texCoordsAll);
             if ( ivyProfile.useLightmapping && generateLightmapUVs ) {
                 PackBranchUV2s(ivyGraph);
             }
-            ivyGraph.branchMesh.SetTriangles(ivyGraph.triangles, 0);
+            ivyGraph.branchMesh.SetTriangles(trianglesAll, 0);
             ivyGraph.branchMesh.RecalculateBounds();
             ivyGraph.branchMesh.RecalculateNormals();
             ivyGraph.branchMesh.RecalculateTangents();
@@ -104,12 +127,12 @@ namespace Hedera
             ivyGraph.leafMF.name = ivyGraph.rootGO.name + "_Leaves";
             ivyGraph.leafMesh.name = ivyGraph.leafMF.name;
             if ( ivyProfile.ivyLeafSize > 0.0001f && ivyProfile.leafProbability > 0.0001f ) {
-                ivyGraph.leafMesh.SetVertices(ivyGraph.leafVertices);
-                ivyGraph.leafMesh.SetUVs(0, ivyGraph.leafUVs);
+                ivyGraph.leafMesh.SetVertices(leafVerticesAll);
+                ivyGraph.leafMesh.SetUVs(0, leafUVsAll);
                 if ( ivyProfile.useLightmapping && generateLightmapUVs ) {
                     PackLeafUV2s( ivyGraph );
                 }
-                ivyGraph.leafMesh.SetTriangles(ivyGraph.leafTriangles, 0);
+                ivyGraph.leafMesh.SetTriangles(leafTrianglesAll, 0);
                 ivyGraph.leafMesh.RecalculateBounds();
                 ivyGraph.leafMesh.RecalculateNormals();
                 ivyGraph.leafMesh.RecalculateTangents();
@@ -121,7 +144,12 @@ namespace Hedera
 
         }
 
-        static bool GenerateMeshData(IvyGraph ivyGraph, IvyProfile ivyProfile)
+        static List<Vector3> allLeafPoints = new List<Vector3>(1024);
+        static List<Vector3> allPoints = new List<Vector3>(512);
+        static List<Vector3> smoothPoints = new List<Vector3>(512);
+        static List<Vector3> newPoints = new List<Vector3>(512);
+        static List<int> combinedTriangleIndices = new List<int>(1024);
+        static bool GenerateMeshData(IvyGraph ivyGraph, IvyProfile ivyProfile, bool forceGeneration = false)
         {
             int nodeCount = 0;
             //evolve a gaussian filter over the adhesion vectors
@@ -169,64 +197,99 @@ namespace Hedera
             //branches
             foreach (var root in ivyGraph.roots)
             {
+                if ( root.useCachedBranchData && !forceGeneration ) {
+                    combinedTriangleIndices.Clear();
+                    root.triangles.ForEach( localIndex => combinedTriangleIndices.Add( localIndex + verticesAll.Count) );
+                    trianglesAll.AddRange ( combinedTriangleIndices );
+
+                    verticesAll.AddRange( root.vertices );
+                    texCoordsAll.AddRange( root.texCoords );
+                    continue;
+                }
+                root.useCachedBranchData = true;
+
                 //process only roots with more than one node
                 if (root.nodes.Count < 2 || root.nodes.Count == 1) continue;
+
+                root.vertices.Clear();
+                root.texCoords.Clear();
+                root.triangles.Clear();
 
                 //branch diameter depends on number of parents
                 float local_ivyBranchDiameter = 1.0f / (float)(root.parents + 1) + 0.75f;
 
-                // generate simplified points for each root, to make it less wavy AND save tris
-                var allPoints = root.nodes.Select( node => node.localPos).ToList();
-                var newPoints = allPoints.ToArray().ToList();
-                if ( !root.isAlive ) {
-                    LineUtility.Simplify( allPoints, 0.04f, newPoints);
-                }
-                // hack: make sure the last point is still there
-                if ( Vector3.Distance(newPoints.Last(), allPoints.Last()) > 0.01f ) {
-                    newPoints.Add( allPoints.Last() );
+                // smooth the line... which increases points a lot
+                allPoints = root.nodes.Select( node => node.localPos).ToList();
+                var useThesePoints = allPoints;
+                if ( ivyProfile.branchSmooth > 1 ) {
+                    SmoothLineCatmullRom( allPoints, smoothPoints, ivyProfile.branchSmooth);
+                    useThesePoints = smoothPoints;
                 }
 
-                for (int node=0; node < newPoints.Count-1; node++)
+                // generate simplified points for each root, to make it less wavy AND save tris
+                if ( !root.isAlive && ivyProfile.branchOptimize > 0f ) {
+                    newPoints.Clear();
+                    newPoints.AddRange( SimplificationHelpers.Simplify<Vector3>( 
+                        useThesePoints, 
+                        (vec1, vec2) => vec1 == vec2,
+                        (vec) => vec.x, 
+                        (vec) => vec.y,
+                        (vec) => vec.z,
+                        ivyProfile.branchOptimize * ivyProfile.ivyStepDistance,
+                        false
+                    ) );
+                    useThesePoints = newPoints;
+                } 
+
+                for (int n=0; n < useThesePoints.Count-1; n++)
                 {
-                    if ( ivyGraph.vertices.Count >= 65531 ) {
+                    if ( verticesAll.Count >= 65531 ) {
                         Debug.LogWarning("Hedera: ending branch generation early, reached ~65536 vertex limit on mesh " + ivyGraph.branchMesh.name + "... but this could technically be solved in Unity 2017.3+ or later with 32-bit index formats for meshes? The exercise is left to the reader.");
                         break;
                     }
-                    root.meshSegments = node+1;
+                    root.meshSegments = n+1;
 
                     //weight depending on ratio of node length to total length
-                    float weight = 1f * node / newPoints.Count;
+                    float weight = 1f * n / useThesePoints.Count;
 
-                    //create trihedral vertices
+                    //create trihedral vertices... TODO: let user specify how many sides?
                     Vector3 up = Vector3.down;
-                    Vector3 basis = (newPoints[node + 1] - newPoints[node]).normalized;
+                    Vector3 basis = (useThesePoints[n + 1] - useThesePoints[n]).normalized;
+                    // Debug.DrawLine( newPoints[node+1] + ivyGraph.seedPos, newPoints[node] + ivyGraph.seedPos, Color.cyan, 5f, false);
 
-                    Vector3 b0 = Vector3.Cross(up, basis).normalized * Mathf.Max(0.001f, local_ivyBranchDiameter * p.ivyBranchSize * 5f * (1f - weight) * weight) + newPoints[node];
-                    Vector3 b1 = RotateAroundAxis(b0, newPoints[node], basis, 2.09f);
-                    Vector3 b2 = RotateAroundAxis(b0, newPoints[node], basis, 4.18f);
+                    Vector3 b0 = Vector3.Cross(up, basis).normalized * Mathf.Max(0.001f, local_ivyBranchDiameter * p.ivyBranchSize * (1f - weight) * weight) + useThesePoints[n];
+                    Vector3 b1 = RotateAroundAxis(b0, useThesePoints[n], basis, 2.09f); // 120 degrees (360 / 3)
+                    Vector3 b2 = RotateAroundAxis(b0, useThesePoints[n], basis, 4.18f);
 
                     //create vertices
-                    ivyGraph.vertices.Add(b0);
-                    ivyGraph.vertices.Add(b1);
-                    ivyGraph.vertices.Add(b2);
+                    root.vertices.Add(b0);
+                    root.vertices.Add(b1);
+                    root.vertices.Add(b2);
 
                     //create texCoords
-                    float texV = (node % 2 == 0 ? 1f : 0.0f); // vertical tiling
-                    ivyGraph.texCoords.Add(new Vector2(0.0f, texV));
-                    ivyGraph.texCoords.Add(new Vector2(0.5f, texV));
-                    ivyGraph.texCoords.Add(new Vector2(1f, texV));
+                    float texV = (n % 2 == 0 ? 1f : 0.0f); // vertical tiling
+                    root.texCoords.Add(new Vector2(0.0f, texV));
+                    root.texCoords.Add(new Vector2(0.5f, texV));
+                    root.texCoords.Add(new Vector2(1f, texV));
 
-                    if (node == 0) continue;
+                    if (n == 0) continue;
 
-                    AddTriangle(ivyGraph, 4, 1, 5);
-                    AddTriangle(ivyGraph, 5, 1, 2);
+                    AddTriangle(root, 4, 1, 5);
+                    AddTriangle(root, 5, 1, 2);
 
-                    AddTriangle(ivyGraph, 5, 2, 6);
-                    AddTriangle(ivyGraph, 6, 2, 3);
+                    AddTriangle(root, 5, 2, 6);
+                    AddTriangle(root, 6, 2, 3);
 
-                    AddTriangle(ivyGraph, 6, 3, 1);
-                    AddTriangle(ivyGraph, 6, 1, 4);
+                    AddTriangle(root, 6, 3, 1);
+                    AddTriangle(root, 6, 1, 4);
                 }
+                
+                combinedTriangleIndices.Clear();
+                root.triangles.ForEach( localIndex => combinedTriangleIndices.Add( localIndex + verticesAll.Count) );
+                trianglesAll.AddRange ( combinedTriangleIndices );
+
+                verticesAll.AddRange ( root.vertices );
+                texCoordsAll.AddRange( root.texCoords );
             }
 
             if ( ivyProfile.ivyLeafSize <= 0.001f || ivyProfile.leafProbability <= 0.001f) {
@@ -234,23 +297,40 @@ namespace Hedera
             }
 
             //create leafs
-            List<Vector3> leafPoints = new List<Vector3>();
+            allLeafPoints.Clear();
             foreach (var root in ivyGraph.roots)
             {
                 // don't bother on small roots
                 if ( root.nodes.Count <= 2 ) {
+                    root.useCachedLeafData = false;
                     continue;
                 }
+
+                if ( root.useCachedLeafData && !forceGeneration ) {
+                    combinedTriangleIndices.Clear();
+                    root.leafTriangles.ForEach( index => combinedTriangleIndices.Add(index + leafVerticesAll.Count));
+                    leafTrianglesAll.AddRange( combinedTriangleIndices );
+
+                    allLeafPoints.AddRange( root.leafPoints );
+                    leafVerticesAll.AddRange ( root.leafVertices );
+                    leafUVsAll.AddRange( root.leafUVs );
+                    continue;
+                }
+                root.useCachedLeafData = true;
+                root.leafPoints.Clear();
+                root.leafVertices.Clear();
+                root.leafUVs.Clear();
+                root.leafTriangles.Clear();
 
                 // simple multiplier, just to make it a more dense
                 for (int i = 0; i < 1; ++i)
                 {
-                    var leafPositions = GetAllSamplePosAlongRoot( root, p.ivyLeafSize * 0.5f );
+                    var leafPositions = GetAllSamplePosAlongRoot( root, p.ivyLeafSize );
 
                     // for(int n=0; n<root.nodes.Count; n++)
                     foreach ( var kvp in leafPositions ) 
                     {
-                        if ( ivyGraph.leafVertices.Count >= 65530 ) {
+                        if ( leafVerticesAll.Count >= 65530 ) {
                             Debug.LogWarning("Hedera: ending leaf generation early, reached ~65536 vertex limit on mesh " + ivyGraph.leafMesh.name + "... but this could technically be solved in Unity 2017.3+ or later with 32-bit index formats for meshes? The exercise is left to the reader.");
                             break;
                         }
@@ -277,8 +357,8 @@ namespace Hedera
                         // don't spawn a leaf on top of another leaf
                         bool badLeafPos = false;
                         float leafSqrSize = p.ivyLeafSize * p.ivyLeafSize * Mathf.Clamp(1f - p.leafProbability - groundedness, 0.01f, 2f);
-                        for(int f=0; f<leafPoints.Count; f++) {
-                            if ( Vector3.SqrMagnitude(leafPoints[f] - newLeafPos) < leafSqrSize ) {
+                        for(int f=0; f<allLeafPoints.Count; f++) {
+                            if ( Vector3.SqrMagnitude(allLeafPoints[f] - newLeafPos) < leafSqrSize ) {
                                 badLeafPos = true;
                                 break;
                             }
@@ -286,16 +366,13 @@ namespace Hedera
                         if ( badLeafPos ) {
                             continue;
                         }
-                        // oops this is very bad apparently, unrolled it into a for() loop
-                        // if ( leafPoints.Where( leafPos => (leafPos - newLeafPos).sqrMagnitude < leafSqrSize).Count() > 0 ) {
-                        //     continue;
-                        // }
 
                         IvyNode previousNode = root.nodes[Mathf.Max(0, n - 1)];
 
                         if (Random.value + groundedness > 1f - p.leafProbability)
                         {
-                            leafPoints.Add( node.localPos );
+                            root.leafPoints.Add( node.localPos );
+                            allLeafPoints.Add( node.localPos );
 
                             //center of leaf quad
                             Vector3 up = (newLeafPos - previousNode.localPos).normalized;
@@ -308,15 +385,15 @@ namespace Hedera
                             leafSize = Mathf.Max( 0.01f, leafSize);
 
                             Quaternion facing = node.adhesionVector.sqrMagnitude < 0.001f ? Quaternion.identity : Quaternion.LookRotation( -node.adhesionVector, Random.onUnitSphere);
-                            AddLeafVertex(ivyGraph, center, new Vector3(-1f, 1f, 0f), leafSize, facing);
-                            AddLeafVertex(ivyGraph, center, new Vector3(1f, 1f, 0f), leafSize, facing);
-                            AddLeafVertex(ivyGraph, center, new Vector3(-1f, -1f, 0f), leafSize, facing);
-                            AddLeafVertex(ivyGraph, center, new Vector3(1f, -1f, 0f), leafSize, facing);
+                            AddLeafVertex(root, center, new Vector3(-1f, 1f, 0f), leafSize, facing);
+                            AddLeafVertex(root, center, new Vector3(1f, 1f, 0f), leafSize, facing);
+                            AddLeafVertex(root, center, new Vector3(-1f, -1f, 0f), leafSize, facing);
+                            AddLeafVertex(root, center, new Vector3(1f, -1f, 0f), leafSize, facing);
 
-                            ivyGraph.leafUVs.Add(new Vector2(1.0f, 1.0f));
-                            ivyGraph.leafUVs.Add(new Vector2(0.0f, 1.0f));
-                            ivyGraph.leafUVs.Add(new Vector2(1.0f, 0.0f));
-                            ivyGraph.leafUVs.Add(new Vector2(0.0f, 0.0f));
+                            root.leafUVs.Add(new Vector2(1.0f, 1.0f));
+                            root.leafUVs.Add(new Vector2(0.0f, 1.0f));
+                            root.leafUVs.Add(new Vector2(1.0f, 0.0f));
+                            root.leafUVs.Add(new Vector2(0.0f, 0.0f));
 
                             // calculate normal of the leaf tri, and make it face outwards
                             // var normal = GetNormal(
@@ -328,11 +405,17 @@ namespace Hedera
                             //    AddLeafTriangle(ivyGraph, 2, 4, 3);
                             //    AddLeafTriangle(ivyGraph, 3, 1, 2);
                             // } else {
-                                    AddLeafTriangle(ivyGraph, 1, 3, 4);
-                                    AddLeafTriangle(ivyGraph, 4, 2, 1);
+                                    AddLeafTriangle(root, 1, 3, 4);
+                                    AddLeafTriangle(root, 4, 2, 1);
                             // }
                         }
                     }
+                    combinedTriangleIndices.Clear();
+                    root.leafTriangles.ForEach( index => combinedTriangleIndices.Add(index + leafVerticesAll.Count));
+                    leafTrianglesAll.AddRange( combinedTriangleIndices );
+
+                    leafVerticesAll.AddRange ( root.leafVertices );
+                    leafUVsAll.AddRange( root.leafUVs );
                 }
             }
             return true;
@@ -340,10 +423,10 @@ namespace Hedera
 
         static void PackLeafUV2s(IvyGraph graph) {
             // remember: this can only happen AFTER vertices and UV1s are generated, we're packing them into a grid
-            int leafCount = graph.leafUVs.Count / 4;
+            int leafCount = leafUVsAll.Count / 4;
             int gridSize = Mathf.CeilToInt( Mathf.Sqrt(leafCount));
             float gridIncrement = 1f / gridSize;
-            Vector2[] newUVs = new Vector2[graph.leafUVs.Count];
+            Vector2[] newUVs = new Vector2[leafUVsAll.Count];
 
             int uvCounter = 0;
             Vector2 gridPointer = Vector2.zero;
@@ -353,7 +436,7 @@ namespace Hedera
                 for (int u=0; u<gridSize; u++) {
                     gridPointer = new Vector2(u,v);
                     for( int i=0; i<4 && uvCounter<newUVs.Length; i++) {
-                        newUVs[uvCounter+i] = (gridPointer + graph.leafUVs[uvCounter+i]) * gridIncrement;
+                        newUVs[uvCounter+i] = (gridPointer + leafUVsAll[uvCounter+i]) * gridIncrement;
                     }
                     uvCounter += 4;
                 }
@@ -370,7 +453,7 @@ namespace Hedera
             int meshSegmentCount = 0; // placeholder, will depend on root
             float gridIncrementX = 1f / branchCount;
             float gridIncrementY = 0f; // placeholder, will depend on root
-            Vector2[] newUVs = new Vector2[graph.texCoords.Count];
+            Vector2[] newUVs = new Vector2[texCoordsAll.Count];
 
             int uvCounter = 0;
             Vector2 gridPointer = Vector2.zero;
@@ -429,27 +512,27 @@ namespace Hedera
             );
         }
 
-        static void AddLeafVertex(IvyGraph ivyGraph, Vector3 center, Vector3 offsetScalar, float ivyLeafSize, Quaternion facing )
+        static void AddLeafVertex(IvyRoot ivyRoot, Vector3 center, Vector3 offsetScalar, float ivyLeafSize, Quaternion facing )
         {
             var tmpVertex = Vector3.zero;
             tmpVertex = center + ivyLeafSize * offsetScalar;
             tmpVertex = facing * (tmpVertex - center) + center; // thank you "The Pirate Duck" https://forum.unity.com/threads/rotate-vertices-around-pivot.124131/
             tmpVertex += Random.onUnitSphere * ivyLeafSize * 0.5f;
-            ivyGraph.leafVertices.Add(tmpVertex);
+            ivyRoot.leafVertices.Add(tmpVertex);
         }
 
-        static void AddLeafTriangle(IvyGraph ivyGraph, int offset1, int offset2, int offset3)
+        static void AddLeafTriangle(IvyRoot ivyRoot, int offset1, int offset2, int offset3)
         {
-            ivyGraph.leafTriangles.Add(ivyGraph.leafVertices.Count - offset1);
-            ivyGraph.leafTriangles.Add(ivyGraph.leafVertices.Count - offset2);
-            ivyGraph.leafTriangles.Add(ivyGraph.leafVertices.Count - offset3);
+            ivyRoot.leafTriangles.Add( ivyRoot.leafVertices.Count - offset1);
+            ivyRoot.leafTriangles.Add( ivyRoot.leafVertices.Count - offset2);
+            ivyRoot.leafTriangles.Add( ivyRoot.leafVertices.Count - offset3);
         }
 
-        static void AddTriangle(IvyGraph ivyGraph, int offset1, int offset2, int offset3)
+        static void AddTriangle(IvyRoot ivyRoot, int offset1, int offset2, int offset3)
         {
-            ivyGraph.triangles.Add(ivyGraph.vertices.Count - offset1);
-            ivyGraph.triangles.Add(ivyGraph.vertices.Count - offset2);
-            ivyGraph.triangles.Add(ivyGraph.vertices.Count - offset3);
+            ivyRoot.triangles.Add( ivyRoot.vertices.Count - offset1);
+            ivyRoot.triangles.Add( ivyRoot.vertices.Count - offset2);
+            ivyRoot.triangles.Add( ivyRoot.vertices.Count - offset3);
         }
 
         static float Vector2ToPolar(Vector2 vector)
@@ -537,6 +620,48 @@ namespace Hedera
            
             GameObjectUtility.SetStaticEditorFlags(obj, currentFlags);
         }
+
+        // catmull-rom spline code from https://en.wikipedia.org/wiki/Centripetal_Catmull%E2%80%93Rom_spline
+        static void SmoothLineCatmullRom( List<Vector3> points, List<Vector3> splinePoints, int splineSubdivisons=2 ) {
+            splinePoints.Clear();
+
+            for (int i=0; i<points.Count; i++) {
+                var p0 = points[Mathf.Max(0, i-1) ]; 
+                var p1 = points[i];
+                var p2 = points[Mathf.Min(points.Count-1, i+1)];
+                var p3 = points[Mathf.Min(points.Count-1, i+2)];
+
+                float t0 = 0.0f;
+                float t1 = GetT(t0, p0, p1);
+                float t2 = GetT(t1, p1, p2);
+                float t3 = GetT(t2, p2, p3);
+
+                for(float t=t1; t<t2; t+=((t2-t1)/splineSubdivisons))
+                {
+                    var A1 = (t1-t)/(t1-t0)*p0 + (t-t0)/(t1-t0)*p1;
+                    var A2 = (t2-t)/(t2-t1)*p1 + (t-t1)/(t2-t1)*p2;
+                    var A3 = (t3-t)/(t3-t2)*p2 + (t-t2)/(t3-t2)*p3;
+                    
+                    var B1 = (t2-t)/(t2-t0)*A1 + (t-t0)/(t2-t0)*A2;
+                    var B2 = (t3-t)/(t3-t1)*A2 + (t-t1)/(t3-t1)*A3;
+                    
+                    var C = (t2-t)/(t2-t1)*B1 + (t-t1)/(t2-t1)*B2;
+                    
+                    splinePoints.Add(C);
+                }
+            }
+        }
+
+        static float alpha = 0.5f;
+        static float GetT(float t, Vector3 p0, Vector3 p1)
+        {
+            float a = Mathf.Pow(p1.x-p0.x, 2.0f) + Mathf.Pow(p1.y-p0.y, 2.0f) + Mathf.Pow(p1.z-p0.z, 2f);
+            float b = Mathf.Pow(a, 0.5f);
+            float c = Mathf.Pow(b, alpha);
+        
+            return (c + t);
+        }
+
 
     }
 }

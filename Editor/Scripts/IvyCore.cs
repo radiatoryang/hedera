@@ -58,21 +58,21 @@ namespace Hedera
         }
 
 		// TODO:
-		// x ivy meshFilter / MR transform positions should be at seedPos
-		// x fix local/world conversions with seedPos
-		// x make sure roots have better probability LATER for branching on strokes
-		// - let user convert mesh to asset, move mesh data out of scene
-		// x test lightmapping
-		// x mesh children names not getting updated
+		// - add "show advanced"
+		// - add "leaf sun tilt"
+		// - save mesh in external asset?
+
+		// - let user replace mesh with OBJ (one-time operation)
+		// - unity 2018.3+ prefab management stuff
+		// 		- can't save changes while editing?
+		// 		- flag in Unity 2018.3 that changes to prefabs are permanent
+		// - vertex colors
+		// - roots that didn't change should get skipped in vertex generation
+		// 		- cache branch and leaf mesh data for each root?
+
 		// - profile and optimize
 		// - cartoon brush, cable brush
 		// - test build out
-		// - optimize ComputeAdhesion.GetVertices GC
-		// - optimise GrowIvyStep.ToArray?
-		// - GenerateMeshData.ToList
-		// - GenerateMeshData.ToArray
-		// - GenerateMeshData.AddList.EnsureCapacity
-		// - GenerateMeshData.AddTriangles
 
         void OnEditorUpdate()
         {
@@ -114,9 +114,9 @@ namespace Hedera
             CreateNewAsset("");
         }
 
-		public static IvyProfileAsset CreateNewAsset(string path = "Assets/NewIvyGenerator.asset") {
+		public static IvyProfileAsset CreateNewAsset(string path = "Assets/NewIvyProfile.asset") {
 			if ( path == "") {
-				path = EditorUtility.SaveFilePanelInProject("Hedera: Create New Ivy Generator .asset file...", "NewIvyGenerator.asset", "asset", "Choose where in your project to save the new ivy generator asset file.");
+				path = EditorUtility.SaveFilePanelInProject("Hedera: Create New Ivy Profile .asset file...", "NewIvyProfile.asset", "asset", "Choose where in your project to save the new ivy profile file.");
 			}
 
 			IvyProfileAsset asset = ScriptableObject.CreateInstance<IvyProfileAsset>();
@@ -199,7 +199,13 @@ namespace Hedera
 			newNode.isClimbing = true;
 
 			closestRoot.nodes.Add( newNode );
+			closestRoot.useCachedBranchData = false;
+			closestRoot.useCachedLeafData = false;
 			// TryGrowIvyBranch( graph, ivyProfile, closestRoot, newNode );
+
+			graph.debugLineSegmentsList.Add(lastNode.localPos + graph.seedPos);
+			graph.debugLineSegmentsList.Add(newPos + graph.seedPos);
+			graph.debugLineSegmentsArray = graph.debugLineSegmentsList.ToArray();
 
 			if ( graph.generateMeshDuringGrowth ) {
 				IvyMesh.GenerateMesh( graph, ivyProfile );
@@ -209,7 +215,8 @@ namespace Hedera
 		public static void ForceRandomIvyBranch ( IvyGraph graph, IvyProfile ivyProfile ) {
 			var randomRoot = graph.roots[0];
 			var randomNode = randomRoot.nodes[Random.Range(0, randomRoot.nodes.Count)];
-			TryGrowIvyBranch( graph, ivyProfile, randomRoot, randomNode, true );
+			var randomLength = randomNode.lengthCumulative + Mathf.Lerp(ivyProfile.minLength * 1.5f, ivyProfile.maxLength, Random.value);
+			TryGrowIvyBranch( graph, ivyProfile, randomRoot, randomNode, randomLength);
 		}
 
 	    public static void GrowIvyStep(IvyGraph graph, IvyProfile ivyProfile)
@@ -232,7 +239,7 @@ namespace Hedera
                 IvyNode lastNode = root.nodes[root.nodes.Count-1];
 
 		        //let the ivy die, if the maximum float length is reached
-				if ( lastNode.lengthCumulative > ivyProfile.maxLength || (lastNode.lengthCumulative > ivyProfile.minLength && lastNode.floatingLength > ivyProfile.maxFloatLength) ) {
+				if ( lastNode.lengthCumulative > ivyProfile.maxLength || (lastNode.lengthCumulative > Mathf.Max(root.forceMinLength, ivyProfile.minLength) && lastNode.floatingLength > ivyProfile.maxFloatLength) ) {
                     // Debug.LogFormat("root death! cum dist: {0:F2}, floatLength {1:F2}", lastNode.lengthCumulative, lastNode.floatingLength);
 					root.isAlive = false;
 					continue;
@@ -248,8 +255,8 @@ namespace Hedera
 				if ( exploreVector.magnitude > 1f ) {
 					exploreVector = exploreVector.normalized;
 				}
-				exploreVector *= lastNode.lengthCumulative / ivyProfile.maxLength;
-                Vector3 randomVector = (Random.insideUnitSphere * 0.5f + exploreVector).normalized;
+				exploreVector *= Mathf.PingPong( root.nodes[0].localPos.sqrMagnitude * root.parents + lastNode.lengthCumulative * 0.69f, 1f);
+                Vector3 randomVector = (Random.onUnitSphere * 0.5f + exploreVector).normalized;
 
                 //adhesion influence to the nearest triangle = weighted sum of previous adhesion vectors
                 Vector3 adhesionVector = ComputeAdhesion(lastNode.localPos + graph.seedPos, ivyProfile);
@@ -305,6 +312,8 @@ namespace Hedera
                 newNode.isClimbing = climbing;
 
 		        root.nodes.Add( newNode );
+				root.useCachedBranchData = false;
+				root.useCachedLeafData = false;
 
 				var randomNode = root.nodes[Random.Range(0, root.nodes.Count)];
 				if ( TryGrowIvyBranch( graph, ivyProfile, root, randomNode ) ) {
@@ -316,11 +325,11 @@ namespace Hedera
 			graph.debugLineSegmentsArray = graph.debugLineSegmentsList.ToArray();
         }
 
-		static bool TryGrowIvyBranch (IvyGraph graph, IvyProfile ivyProfile, IvyRoot root, IvyNode fromNode, bool forceBranch=false) {
+		static bool TryGrowIvyBranch (IvyGraph graph, IvyProfile ivyProfile, IvyRoot root, IvyNode fromNode, float forceMinLength = -1f) {
 			//weight depending on ratio of node length to total length
 			float weight = 1f; //Mathf.PerlinNoise( fromNode.localPos.x + fromNode.lengthCumulative, fromNode.length + fromNode.localPos.y + fromNode.localPos.z); // - ( Mathf.Cos( fromNode.length / root.nodes[root.nodes.Count-1].length * 2.0f * Mathf.PI) * 0.5f + 0.5f );
-			var nearbyRootCount = graph.roots.Where( r => (r.nodes[0].localPos - fromNode.localPos).sqrMagnitude < ivyProfile.ivyStepDistance ).Count();
-			if (!forceBranch ) {
+			var nearbyRootCount = graph.roots.Where( r => (r.nodes[0].localPos - fromNode.localPos).sqrMagnitude < ivyProfile.ivyStepDistance * ivyProfile.ivyStepDistance ).Count();
+			if ( forceMinLength <= 0f ) {
 				if ( graph.roots.Count >= ivyProfile.maxBranchesTotal 
 					|| nearbyRootCount > ivyProfile.branchingProbability * 2f
 					|| root.childCount > ivyProfile.branchingProbability * 3f
@@ -339,7 +348,7 @@ namespace Hedera
 			newRootNode.primaryGrowDir = Vector3.Lerp( fromNode.primaryGrowDir, Vector3.up, 0.5f).normalized;
 			newRootNode.adhesionVector = fromNode.adhesionVector;
 			newRootNode.length = 0.0f;
-			newRootNode.lengthCumulative = fromNode.lengthCumulative;
+			newRootNode.lengthCumulative = forceMinLength > 0f ? 0f : fromNode.lengthCumulative;
 			newRootNode.floatingLength = fromNode.floatingLength;
 			newRootNode.isClimbing = true;
 
@@ -348,14 +357,15 @@ namespace Hedera
 			newRoot.nodes.Add( newRootNode );
 			newRoot.isAlive = true;
 			newRoot.parents = root.parents + 1;
+			newRoot.forceMinLength = forceMinLength;
 			
 			graph.roots.Add( newRoot );
 			root.childCount++;
-
 			return true;
 		}
 
 	    /** compute the adhesion of scene objects at a point pos*/
+		static Dictionary<Mesh, Vector3[]> adhesionMeshCache = new Dictionary<Mesh, Vector3[]>();
 	    static Vector3 ComputeAdhesion(Vector3 pos, IvyProfile ivyProfile)
         {
 	        Vector3 adhesionVector = Vector3.zero;
@@ -367,13 +377,29 @@ namespace Hedera
 
 			// find closest point on each collider
 			foreach ( var col in nearbyColliders ) {
-				Vector3 closestPoint = Vector3.zero;
+				Vector3 closestPoint = pos + Vector3.down * ivyProfile.maxAdhesionDistance * 1.1f;
 				// ClosestPoint does not work on non-convex mesh colliders so let's just pick the closest vertex
 				if ( col is MeshCollider && !((MeshCollider)col).convex ) {
-					// I don't have time to do anything more robust, sorry
-					closestPoint = col.transform.TransformPoint( ((MeshCollider)col).sharedMesh.vertices.OrderBy( vert => Vector3.SqrMagnitude(pos - col.transform.TransformPoint(vert)) ).FirstOrDefault() );
-				
-					// try to get surface normal at nearest vertex
+					// if we haven't already cached mesh vertices, or it's a bad cache for some reason, then re-cache it
+					var mesh = ((MeshCollider)col).sharedMesh;
+					if ( !adhesionMeshCache.ContainsKey(mesh) ) {
+						adhesionMeshCache.Add( mesh, mesh.vertices );
+					} 
+					if ( adhesionMeshCache[mesh].Length != mesh.vertices.Length ) {
+						adhesionMeshCache[mesh] = mesh.vertices;
+					}
+
+					// check for a close-enough vertex
+					float sqrMeshDistance = ivyProfile.maxAdhesionDistance * ivyProfile.maxAdhesionDistance * 4f;
+					for( int i=0; i<adhesionMeshCache[mesh].Length; i++) {
+						if ( Vector3.SqrMagnitude( pos - col.transform.TransformPoint(adhesionMeshCache[mesh][i])) < sqrMeshDistance ) {
+							closestPoint = col.transform.TransformPoint(adhesionMeshCache[mesh][i]);
+							sqrMeshDistance = Vector3.SqrMagnitude( pos - closestPoint);
+						}
+					}
+					// closestPoint = col.transform.TransformPoint( ((MeshCollider)col).sharedMesh.vertices.OrderBy( vert => Vector3.SqrMagnitude(pos - col.transform.TransformPoint(vert)) ).FirstOrDefault() );
+
+					// try to get surface normal towards nearest vertex
 					var meshColliderHit = new RaycastHit();
 					if ( col.Raycast( new Ray(pos, closestPoint - pos), out meshColliderHit, ivyProfile.maxAdhesionDistance) ) {
 						closestPoint = pos - meshColliderHit.normal * meshColliderHit.distance;
@@ -414,6 +440,10 @@ namespace Hedera
 					minDistance = distance;
 					adhesionVector = (closestPoint - pos).normalized;
 				    adhesionVector *= 1.0f - distance / ivyProfile.maxAdhesionDistance; //distance dependent adhesion vector
+					// close enough, early out
+					if ( Vector3.SqrMagnitude(pos - closestPoint) < ivyProfile.ivyStepDistance * ivyProfile.ivyStepDistance ) {
+						break;
+					}
 				}
 			}
 	        return adhesionVector;
@@ -427,8 +457,7 @@ namespace Hedera
 	        bool intersection;
 	        int deadlockCounter = 0;
 
-	        do
-	        {
+	        do {
 		        intersection = false;
 
 				// new raycast collision test
@@ -452,11 +481,20 @@ namespace Hedera
 	        return true;
         }
 
-		public static IvyGraph MergeIvyGraphs (List<IvyGraph> graphsToMerge, IvyProfile ivyProfile, bool rebuildMesh = true) {
-			var mainGraph = graphsToMerge[0];
-			graphsToMerge.Remove(mainGraph);
+		public static IvyGraph MergeVisibleIvyGraphs (IvyBehavior ivyBehavior, IvyProfile ivyProfile, bool rebuildMesh = true) {
+			var graphsToMerge = ivyBehavior.ivyGraphs.Where( graph => graph.isVisible ).ToList();
+			if ( graphsToMerge == null || graphsToMerge.Count == 0) {
+				return null;
+			}
 
-			foreach ( var graph in graphsToMerge ) {
+			var mainGraph = graphsToMerge[0];
+
+			for ( int i=0; i< ivyBehavior.ivyGraphs.Count; i++ ) {
+				var graph = ivyBehavior.ivyGraphs[i];
+				if ( !graph.isVisible || graph == mainGraph ) {
+					continue;
+				}
+
 				// convert merged graph's localPos to mainGraph's localPos
 				foreach ( var root in graph.roots ) {
 					foreach ( var node in root.nodes ) {
@@ -466,18 +504,84 @@ namespace Hedera
 				mainGraph.roots.AddRange( graph.roots );
 				mainGraph.debugLineSegmentsList.AddRange( graph.debugLineSegmentsList );
 				if ( graph.rootGO != null) {
-					Undo.DestroyObjectImmediate( graph.rootGO );
+					DestroyObject( graph.rootGO );
 				}
+
+				ivyBehavior.ivyGraphs.Remove(graph);
+				i--;
 			}
 			mainGraph.debugLineSegmentsArray = mainGraph.debugLineSegmentsList.ToArray();
 
 			if ( rebuildMesh ) {
 				Undo.RegisterFullObjectHierarchyUndo( mainGraph.rootGO, "Hedera > Merge Visible");
-				IvyMesh.GenerateMesh( mainGraph, ivyProfile, ivyProfile.useLightmapping );
+				IvyMesh.GenerateMesh( mainGraph, ivyProfile, ivyProfile.useLightmapping, true );
 			}
 
 			return mainGraph;
 		}
+
+		// this is all needed for Unity 2018.3 or later, due to the new prefab workflow... if earlier, then does nothing
+		// static string rootPrefabPath = "";
+		// static GameObject rootPrefabObject;
+		// public static bool isEditingNewPrefab { get { return rootPrefabObject != null;} }
+		// code from https://forum.unity.com/threads/destroying-a-gameobject-inside-a-prefab-instance-is-not-allowed.555868/
+		// public static IvyBehavior StartDestructiveEdit (IvyBehavior ivyBehavior, bool applyAllOverrides = false) {
+		// 	#if UNITY_2018_3_OR_NEWER
+		// 	if ( PrefabUtility.IsPartOfPrefabInstance( ivyBehavior ) ) {
+		// 		rootPrefabPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot( ivyBehavior );
+		// 		if ( applyAllOverrides ) {
+		// 			var checkChildrenForOverrides = new List<GameObject>();
+		// 			foreach ( var graph in ivyBehavior.ivyGraphs ) {
+		// 				checkChildrenForOverrides.Add( graph.rootGO );
+		// 				if ( graph.leafMF != null ) {
+		// 					checkChildrenForOverrides.Add( graph.leafMF.gameObject );
+		// 				}
+		// 				checkChildrenForOverrides.Add( graph.branchMF.gameObject );
+		// 			}
+		// 			foreach ( var child in checkChildrenForOverrides ) {
+		// 				if ( PrefabUtility.IsAddedGameObjectOverride( child ) ) {
+		// 					PrefabUtility.ApplyAddedGameObject( child, rootPrefabPath, InteractionMode.AutomatedAction);
+		// 				}
+		// 			}
+		// 			PrefabUtility.ApplyObjectOverride( ivyBehavior, rootPrefabPath, InteractionMode.AutomatedAction);
+		// 		}
+		// 		rootPrefabObject = PrefabUtility.LoadPrefabContents( rootPrefabPath );
+		// 		var rootBehavior = PrefabUtility.GetCorrespondingObjectFromSource<IvyBehavior>(ivyBehavior);
+		// 		// find corresponding IvyBehavior, because there might be multiple ivy behaviors in the prefab
+		// 		return rootBehavior;
+		// 	}
+		// 	#endif
+		// 	rootPrefabPath = "";
+		// 	rootPrefabObject = null;
+		// 	return ivyBehavior;
+		// }
+
+		public static void DestroyObject (GameObject go, string undoMessage = "Hedera > Destroy Ivy") {
+			Undo.SetCurrentGroupName( undoMessage );
+			// from https://forum.unity.com/threads/programmatically-destroy-gameobjects-in-prefabs.591907/#post-3953059
+			#if UNITY_2018_3_OR_NEWER
+			if ( PrefabUtility.IsPartOfPrefabInstance(go.transform) ) {
+				// if a part of a prefab instance then get the instance handle
+				Object prefabInstance = PrefabUtility.GetPrefabInstanceHandle(go.transform);
+				// destroy the handle
+				Object.DestroyImmediate(prefabInstance);
+				Object.DestroyImmediate(go);
+				return;
+			}
+			#endif
+			Undo.DestroyObjectImmediate( go );
+		}
+
+		// public static void CommitDestructiveEdit () {
+		// 	#if UNITY_2018_3_OR_NEWER
+		// 	if ( !string.IsNullOrEmpty(rootPrefabPath) && rootPrefabObject != null ) {
+		// 		PrefabUtility.SaveAsPrefabAsset(rootPrefabObject, rootPrefabPath);
+		// 		PrefabUtility.UnloadPrefabContents(rootPrefabObject);
+		// 	}
+		// 	#endif
+		// 	// does nothing if earlier than Unity 2018.3
+		// }
+
 
 
     }
