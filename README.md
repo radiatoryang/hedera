@@ -30,4 +30,5 @@
 - based on [C++ code by Thomas Luft](http://graphics.uni-konstanz.de/~luft/ivy_generator/) from 2006 (!)
 - based on [Unity C# port by Weng Xiao Yi](https://github.com/phoenixzz/IvyGenerator)
 - uses [painting code](https://github.com/marmitoTH/Unity-Prefab-Placement-Editor) and [foliage shader code](https://github.com/marmitoTH/unity-enhanced-foliage) by Lucas Rodrigues
-- uses [.OBJ exporter code](https://wiki.unity3d.com/index.php/ExportOBJ) by DaveA, KeliHlodversson, tgraupmann, drobe.
+- uses [.OBJ exporter code](https://wiki.unity3d.com/index.php/ExportOBJ) by DaveA, KeliHlodversson, tgraupmann, drobe
+- uses [Douglas-Peucker line simplifier code](https://github.com/rohaanhamid/simplify-csharp) by Rohaan Hamid
