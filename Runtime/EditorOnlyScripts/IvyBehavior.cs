@@ -11,6 +11,7 @@ namespace Hedera {
 		public bool generateMeshDuringGrowth = true, enableGrowthSim = true;
 		public bool showProfileFoldout;
 		public IvyProfileAsset profileAsset;
+		public Color debugColor = Color.yellow;
 
 		#endif
 	}

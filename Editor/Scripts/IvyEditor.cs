@@ -40,7 +40,7 @@ namespace Hedera
             }
 
             foreach ( var graph in ivyBehavior.ivyGraphs) {
-                if ( graph.isVisible && (graph.branchMF == null || graph.branchR == null || graph.branchMesh == null) ) {
+                if ( graph.isVisible && (graph.branchMF == null || graph.branchR == null ) ) {
                     DrawDebugIvy( graph );
                 }
             }
@@ -72,7 +72,7 @@ namespace Hedera
                         currentIvyGraph = IvyCore.SeedNewIvyGraph(ivyBehavior.profileAsset.ivyProfile, lastPos, Vector3.up, -mouseNormal, ivyBehavior.transform, ivyBehavior.generateMeshDuringGrowth);
                         currentIvyGraph.isGrowing = false;
                         ivyBehavior.ivyGraphs.Add( currentIvyGraph );
-                    } else {
+                    } else if ( currentIvyGraph != null) {
                         IvyCore.ForceIvyGrowth( currentIvyGraph, ivyBehavior.profileAsset.ivyProfile, lastPos, mouseNormal );
                     }
                 } 
@@ -93,7 +93,7 @@ namespace Hedera
                 if ( currentIvyGraph != null) {
                     currentIvyGraph.isGrowing = ivyBehavior.enableGrowthSim;
                     if ( currentIvyGraph.isGrowing ) {
-                        float branchPercentage = Mathf.Clamp(currentIvyGraph.roots[0].nodes.Last().lengthCumulative / ivyBehavior.profileAsset.ivyProfile.maxLength, 0f, 0.38f);
+                        float branchPercentage = Mathf.Clamp(currentIvyGraph.roots[0].nodes.Last().cS / ivyBehavior.profileAsset.ivyProfile.maxLength, 0f, 0.38f);
                         int branchCount = Mathf.FloorToInt(ivyBehavior.profileAsset.ivyProfile.maxBranchesTotal * branchPercentage * ivyBehavior.profileAsset.ivyProfile.branchingProbability);
                         for( int b=0; b<branchCount; b++) {
                             IvyCore.ForceRandomIvyBranch( currentIvyGraph, ivyBehavior.profileAsset.ivyProfile );
@@ -141,11 +141,17 @@ namespace Hedera
 
     	public void DrawDebugIvy(IvyGraph graph, Color debugColor = default(Color)) {
 			if ( debugColor == default(Color)) {
-				debugColor = Color.yellow;
+				debugColor = ivyBehavior.debugColor;
 			}
             Handles.color = debugColor;
-            if ( graph.debugLineSegmentsArray != null ) {
-                Handles.DrawLines( graph.debugLineSegmentsArray );
+
+            foreach ( var root in graph.roots ) {
+                if ( root.debugLineSegmentsArray == null || root.debugLineSegmentsArray.Length != (root.nodes.Count-1)*2f ) {
+                    IvyCore.RegenerateDebugLines( root );
+                }
+                if ( root.debugLineSegmentsArray != null ) {
+                    Handles.DrawLines( root.debugLineSegmentsArray );
+                }
             }
 		}
 
@@ -219,7 +225,7 @@ namespace Hedera
             content = new GUIContent( " Make Mesh During Painting / Growth", "Generate 3D ivy mesh during painting and growth. Very cool, but very processing intensive. If your computer gets very slow while painting, then disable this." );
             ivyBehavior.generateMeshDuringGrowth = EditorGUILayout.ToggleLeft(content, ivyBehavior.generateMeshDuringGrowth);
 
-            int visibleIvy = ivyBehavior.ivyGraphs.Where( ivy => ivy.rootGO != null && ivy.isVisible ).Count();
+            int visibleIvy = ivyBehavior.ivyGraphs.Where( ivy => ivy.isVisible ).Count();
             GUI.enabled = visibleIvy > 0;
             EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
             content = new GUIContent(" Re-mesh Visible", iconMesh, "Remake meshes for all visible ivy, all at once. Useful when you change your ivy profile settings, and want to see the new changes.");
@@ -229,7 +235,12 @@ namespace Hedera
                         if ( !ivy.isVisible) {
                             continue;
                         }
-                        Undo.RegisterFullObjectHierarchyUndo( ivy.rootGO, "Hedera > Re-mesh Visible" );
+                        if ( ivy.rootGO != null) {
+                            Undo.RegisterFullObjectHierarchyUndo( ivy.rootGO, "Hedera > Re-mesh Visible" );
+                        } else {
+                            IvyMesh.InitOrRefreshRoot( ivy, ivyProfile );
+                            Undo.RegisterCreatedObjectUndo( ivy.rootGO, "Hedera > Re-mesh Visible");
+                        }
                         IvyMesh.GenerateMesh(ivy, ivyProfile, ivyProfile.useLightmapping, true);
                     }
                 }
@@ -269,7 +280,9 @@ namespace Hedera
                 content = new GUIContent( eyeIcon, "Click to toggle visibility for this ivy plant.\n(Enable / disable the game object.)");
                 if ( GUILayout.Button(content, GUILayout.Width(24) )) {
                     ivy.isVisible = !ivy.isVisible;
-                    ivy.rootGO.SetActive( ivy.isVisible );
+                    if ( ivy.rootGO != null) {
+                        ivy.rootGO.SetActive( ivy.isVisible );
+                    }
                 }
                 GUI.color = oldColor;
 
@@ -299,7 +312,7 @@ namespace Hedera
                         IvyMesh.GenerateMesh(ivy, ivyProfile, ivyProfile.useLightmapping, true);
                         Repaint();
                     }
-                    GUI.enabled = ivy.branchMesh != null;
+                    GUI.enabled = ivy.branchMF != null;
                     content = new GUIContent( "OBJ", iconExport, "Export ivy mesh to .OBJ file\n(Note: .OBJs only support one UV channel so they cannot have lightmap UVs, Unity must unwrap them upon import)");
                     if (GUILayout.Button(content, EditorStyles.miniButtonMid, GUILayout.Width(24), GUILayout.Height(16)))
                     {
@@ -328,11 +341,14 @@ namespace Hedera
             if (ivyBehavior.ivyGraphs.Where( ivy => ivy.isGrowing ).Count() > 0 ) {
                 EditorGUILayout.Space();
                 GUI.color = pulseColor;
-                if ( GUILayout.Button( "Force-Stop All Growing") ) {
+                if ( GUILayout.Button( "Stop All Growing") ) {
                     IvyCore.ForceStopGrowing();
                 }
                 GUI.color = oldColor;
             }
+
+            content = new GUIContent("Debug Color", "When ivy doesn't have a mesh, Hedera will visualize the ivy structure as a debug wireframe with this color in the Scene view.");
+            ivyBehavior.debugColor = EditorGUILayout.ColorField( content, ivyBehavior.debugColor );
             
             EditorGUILayout.Space();
         }

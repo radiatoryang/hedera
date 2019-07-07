@@ -34,7 +34,6 @@ namespace Hedera
 {
     public class IvyMesh
     {
-
 		static List<Vector3> verticesAll = new List<Vector3>(4096);
 	    static List<Vector2> texCoordsAll = new List<Vector2>(4096);
 	    static List<int> trianglesAll = new List<int>(16384);
@@ -42,6 +41,7 @@ namespace Hedera
 		static List<Vector2> leafUVsAll = new List<Vector2>(4096);
 		static List<int> leafTrianglesAll = new List<int>(16384);
         static List<Color> leafColorsAll = new List<Color>(4096);
+        static Mesh branchMesh, leafMesh;
 
         public static void InitOrRefreshRoot(IvyGraph ivyGraph, IvyProfile ivyProfile) {
             if ( ivyGraph.rootGO == null ) {
@@ -84,19 +84,18 @@ namespace Hedera
             //     Debug.DrawRay( vert + ivyGraph.seedPos, Vector3.up, Color.cyan, 1f, false );
             // }
 
-            if ( ivyGraph.branchMesh == null) {
-                if ( !string.IsNullOrEmpty(ivyGraph.branchMeshID) && myAsset.meshList.ContainsKey( ivyGraph.branchMeshID )) {
-                    ivyGraph.branchMesh = myAsset.meshList[ivyGraph.branchMeshID];
-                } else {
-                    var newMesh = new Mesh();
-                    AssetDatabase.AddObjectToAsset(newMesh, AssetDatabase.GetAssetPath(myAsset));
-                    ivyGraph.branchMeshID = Path.GetRandomFileName();
-                    myAsset.meshList.Add( ivyGraph.branchMeshID, newMesh);
-                    ivyGraph.branchMesh = newMesh;
-                }
+ 
+            if ( ivyGraph.branchMeshID == 0 || !myAsset.meshList.ContainsKey( ivyGraph.branchMeshID )) {
+                var newMesh = new Mesh();
+                MeshUtility.SetMeshCompression (newMesh, ModelImporterMeshCompression.Medium);
+                AssetDatabase.AddObjectToAsset(newMesh, AssetDatabase.GetAssetPath(myAsset));
+                ivyGraph.branchMeshID = IvyRoot.GetRandomLong();
+                myAsset.meshList.Add( ivyGraph.branchMeshID, newMesh);
             }
+            branchMesh = myAsset.meshList[ivyGraph.branchMeshID];
+         
             if ( ivyGraph.branchMF == null || ivyGraph.branchR == null) {
-                CreateIvyMeshObject(ivyGraph, ivyProfile, ivyGraph.branchMesh, false);
+                CreateIvyMeshObject(ivyGraph, ivyProfile, branchMesh, false);
             }
             SetStaticEditorFlag( ivyGraph.branchMF.gameObject, StaticEditorFlags.BatchingStatic, ivyProfile.markMeshAsStatic );
             SetStaticEditorFlag( ivyGraph.branchMF.gameObject, StaticEditorFlags.LightmapStatic, ivyProfile.useLightmapping );
@@ -105,19 +104,19 @@ namespace Hedera
             branchTrans.localRotation = Quaternion.identity;
             branchTrans.localScale = Vector3.one;
 
-            ivyGraph.branchMesh.Clear();
+            branchMesh.Clear();
             ivyGraph.branchMF.name = ivyGraph.rootGO.name + "_Branches";
-            ivyGraph.branchMesh.name = ivyGraph.branchMF.name;
-            ivyGraph.branchMesh.SetVertices( verticesAll);
-            ivyGraph.branchMesh.SetUVs(0, texCoordsAll);
+            branchMesh.name = ivyGraph.branchMF.name;
+            branchMesh.SetVertices( verticesAll);
+            branchMesh.SetUVs(0, texCoordsAll);
             if ( ivyProfile.useLightmapping && doUV2s ) {
                 PackBranchUV2s(ivyGraph);
             }
-            ivyGraph.branchMesh.SetTriangles(trianglesAll, 0);
-            ivyGraph.branchMesh.RecalculateBounds();
-            ivyGraph.branchMesh.RecalculateNormals();
-            ivyGraph.branchMesh.RecalculateTangents();
-            ivyGraph.branchMF.sharedMesh = ivyGraph.branchMesh;
+            branchMesh.SetTriangles(trianglesAll, 0);
+            branchMesh.RecalculateBounds();
+            branchMesh.RecalculateNormals();
+            branchMesh.RecalculateTangents();
+            ivyGraph.branchMF.sharedMesh = branchMesh;
             ivyGraph.branchR.sharedMaterial = ivyProfile.branchMaterial != null ? ivyProfile.branchMaterial : AssetDatabase.GetBuiltinExtraResource<Material>("Default-Diffuse.mat");
             
             // Leaves mesh debug
@@ -129,28 +128,26 @@ namespace Hedera
                 if ( ivyGraph.leafMF != null ) {
                     Object.DestroyImmediate( ivyGraph.leafMF.gameObject );
                 }
-                if ( ivyGraph.leafMesh != null) {
-                    Object.DestroyImmediate( ivyGraph.leafMesh );
+                if ( leafMesh != null) {
+                    Object.DestroyImmediate( leafMesh );
                 }
-                ivyGraph.leafMeshID = "";
+                ivyGraph.leafMeshID = 0;
                 EditorUtility.SetDirty( myAsset );
                 AssetDatabase.SaveAssets();
                 return;
             }
 
-            if ( ivyGraph.leafMesh == null) {
-                if ( !string.IsNullOrEmpty(ivyGraph.leafMeshID) && myAsset.meshList.ContainsKey( ivyGraph.leafMeshID )) {
-                    ivyGraph.leafMesh = myAsset.meshList[ivyGraph.leafMeshID];
-                } else {
-                    var newMesh = new Mesh();
-                    AssetDatabase.AddObjectToAsset(newMesh, AssetDatabase.GetAssetPath(myAsset));
-                    ivyGraph.leafMeshID = Path.GetRandomFileName();
-                    myAsset.meshList.Add( ivyGraph.leafMeshID, newMesh);
-                    ivyGraph.leafMesh = newMesh;
-                }
+            if ( ivyGraph.leafMeshID == 0 || !myAsset.meshList.ContainsKey( ivyGraph.leafMeshID )) {
+                var newMesh = new Mesh();
+                MeshUtility.SetMeshCompression (newMesh, ModelImporterMeshCompression.Medium);
+                AssetDatabase.AddObjectToAsset(newMesh, AssetDatabase.GetAssetPath(myAsset));
+                ivyGraph.leafMeshID = IvyRoot.GetRandomLong();
+                myAsset.meshList.Add( ivyGraph.leafMeshID, newMesh);
             }
+            leafMesh = myAsset.meshList[ivyGraph.leafMeshID];
+
             if ( ivyGraph.leafMF == null || ivyGraph.leafR == null) {
-                CreateIvyMeshObject(ivyGraph, ivyProfile, ivyGraph.leafMesh, true);
+                CreateIvyMeshObject(ivyGraph, ivyProfile, leafMesh, true);
             } 
             SetStaticEditorFlag( ivyGraph.leafMF.gameObject, StaticEditorFlags.BatchingStatic, ivyProfile.markMeshAsStatic );
             SetStaticEditorFlag( ivyGraph.leafMF.gameObject, StaticEditorFlags.LightmapStatic, ivyProfile.useLightmapping );
@@ -159,28 +156,28 @@ namespace Hedera
             leafTrans.localRotation = Quaternion.identity;
             leafTrans.localScale = Vector3.one;
 
-            ivyGraph.leafMesh.Clear();
+            leafMesh.Clear();
             ivyGraph.leafMF.name = ivyGraph.rootGO.name + "_Leaves";
-            ivyGraph.leafMesh.name = ivyGraph.leafMF.name;
+            leafMesh.name = ivyGraph.leafMF.name;
 
-            ivyGraph.leafMesh.SetVertices(leafVerticesAll);
-            ivyGraph.leafMesh.SetUVs(0, leafUVsAll);
+            leafMesh.SetVertices(leafVerticesAll);
+            leafMesh.SetUVs(0, leafUVsAll);
             if ( ivyProfile.useLightmapping && doUV2s ) {
                 PackLeafUV2s( ivyGraph );
             }
-            ivyGraph.leafMesh.SetTriangles(leafTrianglesAll, 0);
+            leafMesh.SetTriangles(leafTrianglesAll, 0);
             if ( ivyProfile.useVertexColors ) {
-                ivyGraph.leafMesh.SetColors( leafColorsAll );
+                leafMesh.SetColors( leafColorsAll );
             }   
-            ivyGraph.leafMesh.RecalculateBounds();
-            ivyGraph.leafMesh.RecalculateNormals();
-            ivyGraph.leafMesh.RecalculateTangents();
-            ivyGraph.leafMF.sharedMesh = ivyGraph.leafMesh;
+            leafMesh.RecalculateBounds();
+            leafMesh.RecalculateNormals();
+            leafMesh.RecalculateTangents();
+            ivyGraph.leafMF.sharedMesh = leafMesh;
             ivyGraph.leafR.sharedMaterial = ivyProfile.leafMaterial != null ? ivyProfile.leafMaterial : AssetDatabase.GetBuiltinExtraResource<Material>("Default-Diffuse.mat");
 
-            EditorUtility.SetDirty( myAsset );
-            AssetDatabase.SaveAssets();
-            AssetDatabase.ImportAsset( AssetDatabase.GetAssetPath(myAsset) );
+            // EditorUtility.SetDirty( myAsset );
+            // AssetDatabase.SaveAssets();
+            // AssetDatabase.ImportAsset( AssetDatabase.GetAssetPath(myAsset) );
         }
 
         static List<Vector3> allLeafPoints = new List<Vector3>(1024);
@@ -192,43 +189,43 @@ namespace Hedera
         const int MAX_BRANCH_SIDES = 6;
         static bool GenerateMeshData(IvyGraph ivyGraph, IvyProfile ivyProfile, bool forceGeneration = false)
         {
-            int nodeCount = 0;
-            //evolve a gaussian filter over the adhesion vectors
-            float[] gaussian = { 1.0f, 2.0f, 4.0f, 7.0f, 9.0f, 10.0f, 9.0f, 7.0f, 4.0f, 2.0f, 1.0f };
+            // int nodeCount = 0;
+            // //evolve a gaussian filter over the adhesion vectors
+            // float[] gaussian = { 1.0f, 2.0f, 4.0f, 7.0f, 9.0f, 10.0f, 9.0f, 7.0f, 4.0f, 2.0f, 1.0f };
 
-            foreach (var root in ivyGraph.roots)
-            {
-                for (int g = 0; g < 2; ++g)
-                {
-                    for (int node = 0; node < root.nodes.Count; node++)
-                    {
-                        nodeCount++;
-                        Vector3 e = Vector3.zero;
+            // foreach (var root in ivyGraph.roots)
+            // {
+            //     for (int g = 0; g < 2; ++g)
+            //     {
+            //         for (int n = 0; n < root.nodes.Count; n++)
+            //         {
+            //             nodeCount++;
+            //             Vector3 e = Vector3.zero;
 
-                        for (int i = -5; i <= 5; ++i)
-                        {
-                            Vector3 tmpAdhesion = Vector3.zero;
+            //             for (int i = -5; i <= 5; ++i)
+            //             {
+            //                 Vector3 tmpAdhesion = Vector3.zero;
 
-                            if ((node + i) < 0) tmpAdhesion = root.nodes[0].adhesionVector;
-                            if ((node + i) >= root.nodes.Count) tmpAdhesion = root.nodes[root.nodes.Count - 1].adhesionVector;
-                            if (((node + i) >= 0) && ((node + i) < root.nodes.Count)) tmpAdhesion = root.nodes[node + i].adhesionVector;
+            //                 if ((n + i) < 0) tmpAdhesion = root.nodes[0].adhesionVector;
+            //                 if ((n + i) >= root.nodes.Count) tmpAdhesion = root.nodes[root.nodes.Count - 1].adhesionVector;
+            //                 if (((n + i) >= 0) && ((n + i) < root.nodes.Count)) tmpAdhesion = root.nodes[n + i].adhesionVector;
 
-                            e += tmpAdhesion * gaussian[i + 5];
-                        }
+            //                 e += tmpAdhesion * gaussian[i + 5];
+            //             }
 
-                        root.nodes[node].smoothAdhesionVector = e / 56.0f;
-                    }
+            //             root.nodes[n].smoothAdhesionVector = e / 56.0f;
+            //         }
 
-                    for (int i = 0; i < root.nodes.Count; i++)
-                    {
-                        root.nodes[i].adhesionVector = root.nodes[i].smoothAdhesionVector;
-                    }
-                }
-            }
+            //         for (int i = 0; i < root.nodes.Count; i++)
+            //         {
+            //             root.nodes[i].adhesionVector = root.nodes[i].smoothAdhesionVector;
+            //         }
+            //     }
+            // }
 
-            if ( nodeCount < 2 ) {
-                return false;
-            }
+            // if ( nodeCount < 2 ) {
+            //     return false;
+            // }
 
             var p = ivyProfile;
 
@@ -260,7 +257,7 @@ namespace Hedera
                 float local_ivyBranchDiameter = 1.0f / Mathf.Lerp(1f, 1f + root.parents, ivyProfile.branchTaper);
 
                 // smooth the line... which increases points a lot
-                allPoints = root.nodes.Select( node => node.localPos).ToList();
+                allPoints = root.nodes.Select( node => node.p).ToList();
                 var useThesePoints = allPoints;
                 if ( ivyProfile.branchSmooth > 1 ) {
                     SmoothLineCatmullRomNonAlloc( allPoints, smoothPoints, ivyProfile.branchSmooth);
@@ -294,7 +291,7 @@ namespace Hedera
                 for (int n=0; n < useThesePoints.Count; n++)
                 {
                     if ( verticesAll.Count >= 65531 ) {
-                        Debug.LogWarning("Hedera: ending branch generation early, reached ~65536 vertex limit on mesh " + ivyGraph.branchMesh.name + "... but this could technically be solved in Unity 2017.3+ or later with 32-bit index formats for meshes? The exercise is left to the reader.");
+                        Debug.LogWarning("Hedera: ending branch generation early, reached ~65536 vertex limit on mesh " + ivyGraph.seedPos + "... but this could technically be solved in Unity 2017.3+ or later with 32-bit index formats for meshes? The exercise is left to the reader.");
                         break;
                     }
                     root.meshSegments = n+1;
@@ -403,7 +400,7 @@ namespace Hedera
                     foreach ( var kvp in leafPositions ) 
                     {
                         if ( leafVerticesAll.Count >= 65530 ) {
-                            Debug.LogWarning("Hedera: ending leaf generation early, reached ~65536 vertex limit on mesh " + ivyGraph.leafMesh.name + "... but this could technically be solved in Unity 2017.3+ or later with 32-bit index formats for meshes? The exercise is left to the reader.");
+                            Debug.LogWarning("Hedera: ending leaf generation early, reached ~65536 vertex limit on mesh " + ivyGraph.seedPos + "... but this could technically be solved in Unity 2017.3+ or later with 32-bit index formats for meshes? The exercise is left to the reader.");
                             break;
                         }
 
@@ -417,7 +414,7 @@ namespace Hedera
                         // }
 
                         // probability of leaves on the ground is increased
-                        float groundedness = Vector3.Dot(Vector3.down, node.adhesionVector.normalized);
+                        float groundedness = Vector3.Dot(Vector3.down, node.c.normalized);
                         if ( groundedness < -0.02f ) {
                             groundedness -= 0.1f;
                             groundedness *= 3f;
@@ -448,20 +445,20 @@ namespace Hedera
                         // randomize leaf probability // guarantee a leaf on the first or last node
                         if ( (Random.value + groundedness > 1f - p.leafProbability) || randomSpreadHack == 0f )
                         {
-                            root.leafPoints.Add( node.localPos );
-                            allLeafPoints.Add( node.localPos );
+                            root.leafPoints.Add( node.p );
+                            allLeafPoints.Add( node.p );
 
                             //center of leaf quad
-                            Vector3 up = (newLeafPos - previousNode.localPos).normalized;
-                            Vector3 right = Vector3.Cross( up, node.adhesionVector );
-                            Vector3 center = newLeafPos - node.adhesionVector.normalized * 0.05f + (up * Random.Range(-1f, 1f) + right * Random.Range(-1f, 1f) ) * randomSpreadHack * p.ivyLeafSize;
+                            Vector3 up = (newLeafPos - previousNode.p).normalized;
+                            Vector3 right = Vector3.Cross( up, node.c );
+                            Vector3 center = newLeafPos - node.c.normalized * 0.05f + (up * Random.Range(-1f, 1f) + right * Random.Range(-1f, 1f) ) * randomSpreadHack * p.ivyLeafSize;
 
                             //size of leaf
                             float sizeWeight = 1.5f - ( Mathf.Abs(Mathf.Cos(2.0f * Mathf.PI)) * 0.5f + 0.5f);
                             float leafSize = p.ivyLeafSize * sizeWeight + Random.Range(-p.ivyLeafSize, p.ivyLeafSize) * 0.1f + (p.ivyLeafSize * groundedness);
                             leafSize = Mathf.Max( 0.01f, leafSize);
 
-                            Quaternion facing = node.adhesionVector.sqrMagnitude < 0.001f ? Quaternion.identity : Quaternion.LookRotation( Vector3.Lerp(-node.adhesionVector, Vector3.up, groundedness * ivyProfile.leafSunlightBonus), Random.onUnitSphere);
+                            Quaternion facing = node.c.sqrMagnitude < 0.001f ? Quaternion.identity : Quaternion.LookRotation( Vector3.Lerp(-node.c, Vector3.up, groundedness * ivyProfile.leafSunlightBonus), Random.onUnitSphere);
                             AddLeafVertex(root, center, new Vector3(-1f, 1f, 0f), leafSize, facing);
                             AddLeafVertex(root, center, new Vector3(1f, 1f, 0f), leafSize, facing);
                             AddLeafVertex(root, center, new Vector3(-1f, -1f, 0f), leafSize, facing);
@@ -530,7 +527,7 @@ namespace Hedera
                 }
             }
 
-            graph.leafMesh.SetUVs(1, leafUVsAll);
+            leafMesh.SetUVs(1, leafUVsAll);
         }
 
         static float branchUV2packMargin = 0.01f;
@@ -559,7 +556,7 @@ namespace Hedera
                     uvCounter += 3;
                 }
             }
-            graph.branchMesh.SetUVs(1, texCoordsAll );
+            branchMesh.SetUVs(1, texCoordsAll );
         }
 
         static Vector3 GetNormal(Vector3 a, Vector3 b, Vector3 c)
@@ -575,7 +572,7 @@ namespace Hedera
         static Dictionary<Vector3, int> leafList = new Dictionary<Vector3, int>(1024);
         static Dictionary<Vector3, int> GetAllSamplePosAlongRoot(IvyRoot root, float leafSize) {
             leafList.Clear();
-            float rootEndLength = root.nodes[root.nodes.Count-1].length + Mathf.Epsilon;
+            float rootEndLength = root.nodes[root.nodes.Count-1].s + Mathf.Epsilon;
             for( float pointer = leafSize; pointer <= rootEndLength; pointer += leafSize ) {
                 AddLeafPosAlongRoot( root, pointer );
             }
@@ -585,17 +582,17 @@ namespace Hedera
         static void AddLeafPosAlongRoot(IvyRoot ivyRoot, float distance) {
             int startNodeIndex = 0, endNodeIndex = -1;
             for (int i=0; i<ivyRoot.nodes.Count; i++) {
-                if ( ivyRoot.nodes[i].length <= distance + Mathf.Epsilon ) {
+                if ( ivyRoot.nodes[i].s <= distance + Mathf.Epsilon ) {
                     startNodeIndex = i;
                 }
-                if ( endNodeIndex < 0 && ivyRoot.nodes[i].length >= distance - Mathf.Epsilon ) {
+                if ( endNodeIndex < 0 && ivyRoot.nodes[i].s >= distance - Mathf.Epsilon ) {
                     endNodeIndex = i;
                 }
             }
 
-            float t = Mathf.InverseLerp( ivyRoot.nodes[startNodeIndex].length, ivyRoot.nodes[endNodeIndex].length, distance);
+            float t = Mathf.InverseLerp( ivyRoot.nodes[startNodeIndex].s, ivyRoot.nodes[endNodeIndex].s, distance);
             leafList.Add( 
-                Vector3.Lerp( ivyRoot.nodes[startNodeIndex].localPos, ivyRoot.nodes[endNodeIndex].localPos, t), 
+                Vector3.Lerp( ivyRoot.nodes[startNodeIndex].p, ivyRoot.nodes[endNodeIndex].p, t), 
                 startNodeIndex 
             );
         }

@@ -174,7 +174,7 @@ namespace Hedera {
                     content = new GUIContent("Taper %", "How much to taper / sharpen branch mesh ends. Looks great for organic objects. But for ropes, cables, or pipes, you should set to 0% to maintain a constant thickness.\n(default: 100%)");
                     ivyProfile.branchTaper = EditorGUILayout.IntSlider(content, Mathf.RoundToInt(ivyProfile.branchTaper * 100f), 0, 100) * 0.01f;
 
-                    content = new GUIContent("Leaf Sunlight %", "Approximates how ivy wants to be in the sun. More leaves on floors / roofs, fewer leaves on ceilings. 0% means leaves will spawn evenly regardless of surface.\n(default: 100%)");
+                    content = new GUIContent("Leaf Sunlight %", "Approximates how ivy wants to be in the sun. Leaves will face upwards more. Ivy will grow more leaves on floors / roofs, and fewer leaves on ceilings. 0% means leaves will spawn evenly regardless of surface, and align leaves with surface.\n(default: 100%)");
                     ivyProfile.leafSunlightBonus = EditorGUILayout.IntSlider(content, Mathf.RoundToInt(ivyProfile.leafSunlightBonus * 100f), 0, 150) * 0.01f;
 
                     EditorGUI.indentLevel--;

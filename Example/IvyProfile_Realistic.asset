@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: IvyProfile_Realistic
   m_EditorClassIdentifier: 
   ivyProfile:
-    showAdvanced: 1
+    showAdvanced: 0
     showGrowthFoldout: 1
     showAIFoldout: 1
     showMeshFoldout: 1
@@ -24,7 +24,7 @@ MonoBehaviour:
     leafMaterial: {fileID: 2100000, guid: f266a98e14b6a8e42a5d186732b9d88c, type: 2}
     ivyStepDistance: 0.1
     ivyLeafSize: 0.15
-    ivyBranchSize: 0.05
+    ivyBranchSize: 0.1
     maxFloatLength: 1
     maxAdhesionDistance: 1
     minLength: 1

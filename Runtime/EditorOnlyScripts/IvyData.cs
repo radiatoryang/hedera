@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 
 namespace Hedera
 {
@@ -45,6 +46,8 @@ namespace Hedera
 		public string namePrefix = "Ivy[{0}]{1}";
 		public bool markMeshAsStatic = true;
 		public bool useLightmapping = false;
+		public enum MeshCompression {None, Low, Medium, High}
+		public MeshCompression meshCompress;
 
 		public bool useVertexColors = true;
 		public Gradient leafVertexColors = new Gradient();
@@ -84,6 +87,7 @@ namespace Hedera
 			namePrefix = "Ivy[{0}]{1}";
 			markMeshAsStatic = true;
 			useLightmapping = false;
+			meshCompress = MeshCompression.Low;
 			collisionMask = Physics.DefaultRaycastLayers;
 
 			useVertexColors = true;
@@ -105,27 +109,29 @@ namespace Hedera
 	[System.Serializable]
     public class IvyNode
     {
-		
 		#if UNITY_EDITOR
-	    public Vector3 localPos;			
+		// renamed variables to be very short, to save on serialization file size
+		// sorry in advance
+
+	    public Vector3 p;			
 
 	    /** primary grow direction, a weighted sum of the previous directions */
-	    public Vector3 primaryGrowDir;
+	    public Vector3 g;
 
-	    public Vector3 adhesionVector;
+	    public Vector3 c;
 
 	    /** a smoothed adhesion vector computed and used during the birth phase,
 	       since the ivy leaves are align by the adhesion vector, this smoothed vector
 	       allows for smooth transitions of leaf alignment */
-	    public Vector3 smoothAdhesionVector;
+	    //public Vector3 smoothAdhesionVector;
 
-	    public float length;
-		public float lengthCumulative;
+	    public float s;
+		public float cS;
 
 	    /** length at the last node that was climbing */
-	    public float floatingLength;
+	    public float fS;
 
-	    public bool isClimbing;
+	    public bool cl;
 
 		#endif
     }
@@ -134,6 +140,19 @@ namespace Hedera
     public class IvyRoot
     {
 		#if UNITY_EDITOR
+
+		// mesh cache for each root
+        static Dictionary<long, IvyRootMeshCache> meshCache = new Dictionary<long, IvyRootMeshCache>(64);
+
+        static IvyRootMeshCache Get( long cacheID ) {
+            if ( meshCache.ContainsKey(cacheID) ) {
+                return meshCache[cacheID];
+            } else {
+                var newCache = new IvyRootMeshCache();
+                meshCache.Add( cacheID, newCache );
+                return newCache;
+            }
+        }
 
 	    public List<IvyNode> nodes = new List<IvyNode>();
 	    public bool isAlive;
@@ -146,9 +165,92 @@ namespace Hedera
 
 		public float forceMinLength = -1f;
 
+		public long cacheID;
+
+		// public int meshSegments;
+		// public List<Vector3> leafPoints = new List<Vector3>(64);
+		// public bool useCachedBranchData = false, useCachedLeafData = false;
+
+		// public List<Vector3> vertices = new List<Vector3>(128);
+	    // public List<Vector2> texCoords = new List<Vector2>(128);
+	    // public List<int> triangles = new List<int>(1024);
+
+		// public List<Vector3> leafVertices = new List<Vector3>(128);
+		// public List<Vector2> leafUVs = new List<Vector2>(128);
+		// public List<int> leafTriangles = new List<int>(512);
+		// public List<Color> leafVertexColors = new List<Color>(128);
+
+		public int meshSegments {
+			get { return Get(cacheID).meshSegments; }
+			set { Get(cacheID).meshSegments = value; }
+		}
+		public List<Vector3> leafPoints {
+			get { return Get(cacheID).leafPoints; }
+			// set { Get(this).leafPoints = value; }
+		}
+		// public bool useCachedBranchData {
+		// 	get { return Get(cacheID).useCachedBranchData; }
+		// 	set { Get(cacheID).useCachedBranchData = value; }
+		// }
+		// public bool useCachedLeafData {
+		// 	get { return Get(cacheID).useCachedLeafData; }
+		// 	set { Get(cacheID).useCachedBranchData = value; }
+		// }
+		public bool useCachedBranchData = false, useCachedLeafData = false;
+
+		public List<Vector3> vertices {
+			get { return Get(cacheID).vertices; }
+			// set { Get(this).vertices = value; }
+		}
+	    public List<Vector2> texCoords {
+			get { return Get(cacheID).texCoords; }
+			// set { Get(this).texCoords = value; }
+		}
+	    public List<int> triangles {
+			get { return Get(cacheID).triangles; }
+		}
+
+		public List<Vector3> leafVertices {
+			get { return Get(cacheID).leafVertices; }
+		}
+
+		public List<Vector2> leafUVs {
+			get { return Get(cacheID).leafUVs; }
+		}
+		public List<int> leafTriangles {
+			get { return Get(cacheID).leafTriangles; }
+		}
+		public List<Color> leafVertexColors {
+			get { return Get(cacheID).leafVertexColors; }
+		}
+
+		public List<Vector3> debugLineSegmentsList {
+			get { return Get(cacheID).debugLineSegmentsList; }
+		}
+		public Vector3[] debugLineSegmentsArray {
+			get { return Get(cacheID).debugLineSegmentsArray; }
+			set { Get(cacheID).debugLineSegmentsArray = value; }
+		}
+
+		static System.Random rand = new System.Random();
+		public static long GetRandomLong() {
+			byte[] buffer = new byte[8];
+      		rand.NextBytes (buffer);
+			return System.BitConverter.ToInt64(buffer, 0);
+		}
+
+		public IvyRoot() {
+      		cacheID = GetRandomLong();
+		}
+
+		#endif
+    }
+
+	public class IvyRootMeshCache {
+		#if UNITY_EDITOR
 		public int meshSegments;
 		public List<Vector3> leafPoints = new List<Vector3>(64);
-		public bool useCachedBranchData = false, useCachedLeafData = false;
+		// public bool useCachedBranchData = false, useCachedLeafData = false;
 
 		public List<Vector3> vertices = new List<Vector3>(128);
 	    public List<Vector2> texCoords = new List<Vector2>(128);
@@ -159,8 +261,11 @@ namespace Hedera
 		public List<int> leafTriangles = new List<int>(512);
 		public List<Color> leafVertexColors = new List<Color>(128);
 
+		public List<Vector3> debugLineSegmentsList = new List<Vector3>(512);
+		public Vector3[] debugLineSegmentsArray;
+
 		#endif
-    }
+	}
 
 	[System.Serializable]
     public class IvyGraph
@@ -173,9 +278,6 @@ namespace Hedera
 		public Vector3 seedPos;
 		public bool generateMeshDuringGrowth = false;
 		
-		public List<Vector3> debugLineSegmentsList = new List<Vector3>(512);
-		public Vector3[] debugLineSegmentsArray;
-
 		 // ivy roots
 	    [HideInInspector] public List<IvyRoot> roots = new List<IvyRoot>(8);	
 
@@ -188,18 +290,23 @@ namespace Hedera
 		// public List<Vector2> leafUVs = new List<Vector2>();
 		// public List<int> leafTriangles = new List<int>();
 
-		public Mesh branchMesh, leafMesh;
+		// public Mesh branchMesh, leafMesh;
 		// { get { 
 		// 	if ( string.IsNullOrEmpty(branchGUID) ) {
 		// 		return null;
 		// 	}
 		// 	var mesh = 
 		// 	}}
-		public string branchMeshID, leafMeshID;
+		public long branchMeshID = 0, leafMeshID = 0;
 		public Transform rootBehavior;
 		public GameObject rootGO;
 		public MeshFilter branchMF, leafMF;
 		public Renderer branchR, leafR;
+
+		public IvyGraph () {
+			branchMeshID = IvyRoot.GetRandomLong();
+			leafMeshID = IvyRoot.GetRandomLong();
+		}
 
 		public void ResetMeshData()
         {
@@ -210,8 +317,8 @@ namespace Hedera
 			// leafUVs.Clear();
 			// leafTriangles.Clear();
 			dirtyUV2s = false;
-			branchMesh = null;
-			leafMesh = null;
+			// branchMesh = null;
+			// leafMesh = null;
         }
 
 		#endif
