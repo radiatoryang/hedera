@@ -1,0 +1,75 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1020a4c7d209d44692bbe0a13ac8cd8, type: 3}
+  m_Name: IvyProfile_CableWire
+  m_EditorClassIdentifier: 
+  ivyProfile:
+    showAdvanced: 0
+    showGrowthFoldout: 1
+    showAIFoldout: 1
+    showMeshFoldout: 1
+    collisionMask:
+      serializedVersion: 2
+      m_Bits: 7
+    branchMaterial: {fileID: 2100000, guid: 219bd198d9a844d16a89bff467a02fec, type: 2}
+    leafMaterial: {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+    ivyStepDistance: 0.1
+    ivyLeafSize: 0.15
+    ivyBranchSize: 0.04
+    maxFloatLength: 1
+    maxAdhesionDistance: 1
+    minLength: 1
+    maxLength: 3
+    maxBranchesTotal: 64
+    primaryWeight: 0.5
+    randomWeight: 1
+    gravityWeight: 3
+    adhesionWeight: 1
+    branchingProbability: 0
+    leafProbability: 0
+    leafSunlightBonus: 0
+    branchOptimize: 0.19999999
+    branchSmooth: 4
+    branchTaper: 0
+    namePrefix: Ivy[{0}]{1}
+    markMeshAsStatic: 1
+    useLightmapping: 0
+    useVertexColors: 0
+    leafVertexColors:
+      serializedVersion: 2
+      key0: {r: 1, g: 1, b: 1, a: 1}
+      key1: {r: 0, g: 1, b: 0, a: 1}
+      key2: {r: 1, g: 0.92156863, b: 0.015686275, a: 0}
+      key3: {r: 0, g: 0, b: 0, a: 0}
+      key4: {r: 0, g: 0, b: 0, a: 0}
+      key5: {r: 0, g: 0, b: 0, a: 0}
+      key6: {r: 0, g: 0, b: 0, a: 0}
+      key7: {r: 0, g: 0, b: 0, a: 0}
+      ctime0: 0
+      ctime1: 44564
+      ctime2: 65535
+      ctime3: 0
+      ctime4: 0
+      ctime5: 0
+      ctime6: 0
+      ctime7: 0
+      atime0: 0
+      atime1: 65535
+      atime2: 0
+      atime3: 0
+      atime4: 0
+      atime5: 0
+      atime6: 0
+      atime7: 0
+      m_Mode: 0
+      m_NumColorKeys: 3
+      m_NumAlphaKeys: 2

@@ -67,7 +67,7 @@ Material:
     - _Mode: 1
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _ShakeBending: 0.68
+    - _ShakeBending: 0.8
     - _ShakeDisplacement: 68.4
     - _ShakeTime: 0.68
     - _ShakeWindspeed: 3
@@ -75,7 +75,8 @@ Material:
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
+    - _VertexColor: 0.75
     - _ZWrite: 1
     m_Colors:
-    - _Color: {r: 0.9528302, g: 0.9123584, b: 0.4000089, a: 1}
+    - _Color: {r: 1, g: 0.99344224, b: 0.9103774, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}

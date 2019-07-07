@@ -8,7 +8,8 @@ using System.Linq;
 
 namespace Hedera
 {
-    [CreateAssetMenu(fileName = "NewIvyProfile", menuName = "Ivy Profile (Hedera)", order = 1)]
+    [CreateAssetMenu(fileName = "NewIvyProfile", menuName = "Ivy Profile (Hedera)", order = 1),
+    HelpURL("https://github.com/radiatoryang/hedera/wiki")]
     public class IvyProfileAsset : ScriptableObject
     { 
         #if UNITY_EDITOR

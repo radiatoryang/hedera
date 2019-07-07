@@ -9,6 +9,8 @@ namespace Hedera
     public class IvyProfile {
 		#if UNITY_EDITOR
 
+		public bool showAdvanced, showGrowthFoldout=true, showAIFoldout=true, showMeshFoldout=true;
+
 		public LayerMask collisionMask = -5;
         public Material branchMaterial, leafMaterial;
 
@@ -28,19 +30,24 @@ namespace Hedera
 		public int maxBranchesTotal = 64;
 
 	    public float primaryWeight = 0.5f;
-	    public float randomWeight = 0.5f;
+	    public float randomWeight = 1f;
 	    public float gravityWeight = 3;
 	    public float adhesionWeight = 1f;
 
-	    public float branchingProbability = 0.1f;
+	    public float branchingProbability = 0.25f;
 	    public float leafProbability = 0.5f;
 		public float leafSunlightBonus = 1f;
-		public float branchOptimize = 0.6f;
+		public float branchOptimize = 0.5f;
 		public int branchSmooth = 2;
+
+		public float branchTaper = 1f;
 
 		public string namePrefix = "Ivy[{0}]{1}";
 		public bool markMeshAsStatic = true;
 		public bool useLightmapping = false;
+
+		public bool useVertexColors = true;
+		public Gradient leafVertexColors = new Gradient();
 
 		public IvyProfile() {
 			ResetSettings();
@@ -49,11 +56,11 @@ namespace Hedera
 	    public void ResetSettings()
         {
 	        primaryWeight = 0.5f;
-	        randomWeight = 0.5f;
+	        randomWeight = 1f;
 	        gravityWeight = 3f;
 	        adhesionWeight = 1f;
 
-	        branchingProbability = 0.1f;
+	        branchingProbability = 0.25f;
 
 	        ivyStepDistance = 0.1f;
 
@@ -61,21 +68,33 @@ namespace Hedera
 	        ivyBranchSize = 0.05f;
 			leafProbability = 0.5f;
 			leafSunlightBonus = 1f;
-			branchOptimize = 0.6f;
+	
+			branchOptimize = 0.5f;
 			branchSmooth = 2;
+			branchTaper = 1f;
 
 	        maxFloatLength = 1f;
 	        maxAdhesionDistance = 1f;
 			// maxBranchesPerRoot = 2;
 			maxBranchesTotal = 64;
 
-			minLength = 0.5f;
-			maxLength = 5f;
+			minLength = 1f;
+			maxLength = 3f;
 
 			namePrefix = "Ivy[{0}]{1}";
 			markMeshAsStatic = true;
 			useLightmapping = false;
 			collisionMask = Physics.DefaultRaycastLayers;
+
+			useVertexColors = true;
+			leafVertexColors = new Gradient();
+			leafVertexColors.SetKeys( new GradientColorKey[] { 
+				new GradientColorKey(Color.white, 0f),
+				new GradientColorKey(Color.green, 0.68f),
+				new GradientColorKey(Color.yellow, 1f )
+			}, 
+			new GradientAlphaKey[] { new GradientAlphaKey(1f, 0f)} );
+
 			//branchMaterial = null;
 			//leafMaterial = null;
         }
@@ -128,16 +147,17 @@ namespace Hedera
 		public float forceMinLength = -1f;
 
 		public int meshSegments;
-		public List<Vector3> leafPoints = new List<Vector3>();
+		public List<Vector3> leafPoints = new List<Vector3>(64);
 		public bool useCachedBranchData = false, useCachedLeafData = false;
 
-		public List<Vector3> vertices = new List<Vector3>();
-	    public List<Vector2> texCoords = new List<Vector2>();
-	    public List<int> triangles = new List<int>();
+		public List<Vector3> vertices = new List<Vector3>(128);
+	    public List<Vector2> texCoords = new List<Vector2>(128);
+	    public List<int> triangles = new List<int>(1024);
 
-		public List<Vector3> leafVertices = new List<Vector3>();
-		public List<Vector2> leafUVs = new List<Vector2>();
-		public List<int> leafTriangles = new List<int>();
+		public List<Vector3> leafVertices = new List<Vector3>(128);
+		public List<Vector2> leafUVs = new List<Vector2>(128);
+		public List<int> leafTriangles = new List<int>(512);
+		public List<Color> leafVertexColors = new List<Color>(128);
 
 		#endif
     }
@@ -153,11 +173,11 @@ namespace Hedera
 		public Vector3 seedPos;
 		public bool generateMeshDuringGrowth = false;
 		
-		public List<Vector3> debugLineSegmentsList = new List<Vector3>();
+		public List<Vector3> debugLineSegmentsList = new List<Vector3>(512);
 		public Vector3[] debugLineSegmentsArray;
 
 		 // ivy roots
-	    [HideInInspector] public List<IvyRoot> roots = new List<IvyRoot>();	
+	    [HideInInspector] public List<IvyRoot> roots = new List<IvyRoot>(8);	
 
 		// ivy mesh data
 		// public List<Vector3> vertices = new List<Vector3>();
@@ -169,6 +189,13 @@ namespace Hedera
 		// public List<int> leafTriangles = new List<int>();
 
 		public Mesh branchMesh, leafMesh;
+		// { get { 
+		// 	if ( string.IsNullOrEmpty(branchGUID) ) {
+		// 		return null;
+		// 	}
+		// 	var mesh = 
+		// 	}}
+		public string branchMeshID, leafMeshID;
 		public Transform rootBehavior;
 		public GameObject rootGO;
 		public MeshFilter branchMF, leafMF;

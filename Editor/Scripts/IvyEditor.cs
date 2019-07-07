@@ -12,6 +12,7 @@ namespace Hedera
     {
         IvyBehavior ivyBehavior;
         IvyGraph currentIvyGraph;
+        Editor ivyProfileEditor;
 
         bool isPlantingModeActive;
 
@@ -93,7 +94,7 @@ namespace Hedera
                     currentIvyGraph.isGrowing = ivyBehavior.enableGrowthSim;
                     if ( currentIvyGraph.isGrowing ) {
                         float branchPercentage = Mathf.Clamp(currentIvyGraph.roots[0].nodes.Last().lengthCumulative / ivyBehavior.profileAsset.ivyProfile.maxLength, 0f, 0.38f);
-                        int branchCount = Mathf.CeilToInt(ivyBehavior.profileAsset.ivyProfile.maxBranchesTotal * branchPercentage * Mathf.Pow(ivyBehavior.profileAsset.ivyProfile.branchingProbability, 2f));
+                        int branchCount = Mathf.FloorToInt(ivyBehavior.profileAsset.ivyProfile.maxBranchesTotal * branchPercentage * ivyBehavior.profileAsset.ivyProfile.branchingProbability);
                         for( int b=0; b<branchCount; b++) {
                             IvyCore.ForceRandomIvyBranch( currentIvyGraph, ivyBehavior.profileAsset.ivyProfile );
                         }
@@ -157,14 +158,24 @@ namespace Hedera
             }
 
             EditorGUILayout.BeginVertical( EditorStyles.helpBox );
+            EditorGUI.BeginChangeCheck();
             ivyBehavior.profileAsset = EditorGUILayout.ObjectField( ivyBehavior.profileAsset, typeof(IvyProfileAsset), false ) as IvyProfileAsset;
+            if ( EditorGUI.EndChangeCheck() || (ivyProfileEditor == null && ivyBehavior.profileAsset != null)) {
+                ivyProfileEditor = Editor.CreateEditor( ivyBehavior.profileAsset );
+            }
 
-            if ( ivyBehavior.profileAsset == null) {
+            // destroy old editor / cleanup
+            if ( ivyBehavior.profileAsset == null && ivyProfileEditor != null) {
+                DestroyImmediate( ivyProfileEditor );
+            }
+
+            if ( ivyBehavior.profileAsset == null || ivyProfileEditor == null) {
                 EditorGUILayout.HelpBox("Please assign an Ivy Profile Asset.", MessageType.Warning);
                 if ( GUILayout.Button("Create new Ivy Profile Asset...") ) {
                     var newAsset = IvyCore.CreateNewAsset("");
                     if ( newAsset != null) {
                         ivyBehavior.profileAsset = newAsset;
+                        ivyBehavior.showProfileFoldout = true;
                         Selection.activeGameObject = ivyBehavior.gameObject;
                     }
                 }
@@ -177,12 +188,6 @@ namespace Hedera
             if ( !IvyCore.ivyBehaviors.Contains(ivyBehavior) ) {
                 IvyCore.ivyBehaviors.Add(ivyBehavior);
             }
-
-            // EditorGUILayout.HelpBox("Hint:\nPress 'Start Plant' to begin a new ivy root, then press"
-            //                 + " 'p' on your keyboard to place new root in the SceneView. "
-            //                 + "In 3D Mode you have to place root onto objects with colliders."
-            //                 + " You can only place one root at the scene view position.", MessageType.Info);
-
             
             GUIContent content = null;
             EditorGUI.indentLevel++;
@@ -190,146 +195,12 @@ namespace Hedera
             EditorGUI.indentLevel--;
             if (EditorGUILayout.BeginFadeGroup(ivyBehavior.showProfileFoldout ? 1 : 0))
             {
-                EditorGUILayout.HelpBox("Hover over each label to learn more.\nIf you mess up, click Reset To Defaults.", MessageType.Info);
-
-                if ( GUILayout.Button("Reset to Defaults", EditorStyles.miniButton) ) {
-                    if ( EditorUtility.DisplayDialog("Hedera: Reset Ivy Profile to Default Settings", "Are you sure you want to reset this ivy profile back to default settings?", "Yes, reset!", "Cancel") )
-                    {
-                        Undo.RegisterCompleteObjectUndo(ivyBehavior.profileAsset, "Hedera > Reset Settings" );
-                        ivyProfile.ResetSettings();
-                        EditorUtility.SetDirty( ivyBehavior.profileAsset );
-                    }
-                }
-
-                EditorGUILayout.Separator();
-                GUI.changed = false;
-                EditorGUI.BeginChangeCheck();
-
-                EditorGUI.indentLevel++;
-                content = new GUIContent("Growth Sim", "When you paint ivy, it will try to grow on nearby surfaces. These settings control how much it should grow automatically.");
-                ivyBehavior.showGrowthFoldout = EditorGUILayout.Foldout(ivyBehavior.showGrowthFoldout, content, true);
-
-                if ( ivyBehavior.showGrowthFoldout ) {
-                    content = new GUIContent("Ivy Step Distance", "How far ivy tries to move per frame. (default: 0.1)\nSmaller = more curvy, smoother, more polygons.\nLarger = more angular and fewer polygons.");
-                    ivyProfile.ivyStepDistance = EditorGUILayout.Slider(content, ivyProfile.ivyStepDistance, 0.01f, 0.5f);
-
-                    content = new GUIContent("Length", "Force branches to grow within this min / max range.\n(default: 0.5-5.0)");
-                    EditorGUILayout.BeginHorizontal();
-                    EditorGUILayout.LabelField( content, GUILayout.MaxWidth(60) );
-                    EditorGUI.indentLevel--;
-                    ivyProfile.minLength = Mathf.Clamp(EditorGUILayout.DelayedFloatField( ivyProfile.minLength, GUILayout.MaxWidth(28) ), 0.01f, ivyProfile.maxLength-0.01f);
-                    EditorGUILayout.MinMaxSlider(ref ivyProfile.minLength, ref ivyProfile.maxLength, 0.01f, 10f);
-                    ivyProfile.maxLength = Mathf.Clamp(EditorGUILayout.DelayedFloatField( ivyProfile.maxLength, GUILayout.MaxWidth(28) ), ivyProfile.minLength+0.01f, 10f);
-                    EditorGUI.indentLevel++;
-                    EditorGUILayout.EndHorizontal();
-
-                    content = new GUIContent("Branch Limit", "Maximum branches total per plant. (Hint: If you want large plants to go specific places, then paint multiple plants and merge them later.)\n(default: 64)");
-                    ivyProfile.maxBranchesTotal = EditorGUILayout.IntSlider(content, ivyProfile.maxBranchesTotal, 1, 128);
-
-                    // content = new GUIContent("Branch Per Branch", "How many times a branch can branch.\n(default: 1)");
-                    // ivyProfile.maxBranchesPerRoot = EditorGUILayout.IntSlider(content, ivyProfile.maxBranchesPerRoot, 0, 8);
-
-                    content = new GUIContent("Branch Probability", "Higher values = many more branches. At 100%, almost all plants will reach their Branch Limit.\n(default: 10%");
-                    ivyProfile.branchingProbability = EditorGUILayout.Slider(content, ivyProfile.branchingProbability, 0f, 1f);
-    
-                    content = new GUIContent("Max Float Length", "How far ivy can 'float' with no surface to cling on to.\n(default: 1)");
-                    ivyProfile.maxFloatLength = EditorGUILayout.Slider(content, ivyProfile.maxFloatLength, 0.001f, 2f);
-
-                    content = new GUIContent("Max Cling Distance", "How far ivy can detect surfaces to cling on to. Larger values make ivy 'smarter', but simulation will be slower and more expensive.\n(default: 1.0)");
-                    ivyProfile.maxAdhesionDistance = EditorGUILayout.Slider(content, ivyProfile.maxAdhesionDistance, 0.01f, 2f);
-
-                    content = new GUIContent("Collision Mask", "Which layers the ivy should collide with / cling to. Also determines which collision layers you can paint on.\n(default: Everything except Ignore Raycast)");
-                    ivyProfile.collisionMask = EditorGUILayout.MaskField(content, InternalEditorUtility.LayerMaskToConcatenatedLayersMask(ivyProfile.collisionMask), InternalEditorUtility.layers);
-
-                    if ( ivyProfile.collisionMask == 0) {
-                        EditorGUILayout.HelpBox("Collision Mask shouldn't be Nothing. That means you can't paint on anything, and ivy can't cling or climb.", MessageType.Warning);
-                    }
-                }
-
-                // =========
-
-                content = new GUIContent("Growth AI", "When you simulate ivy, it will calculate growth directions using these influence settings.");
-                ivyBehavior.showAIFoldout = EditorGUILayout.Foldout(ivyBehavior.showAIFoldout, content, true);
-
-                if ( ivyBehavior.showAIFoldout ) {
-                    content = new GUIContent("Plant Follow %", "How much to maintain current path and grow upwards.\n(default: 50%)");
-                    ivyProfile.primaryWeight = EditorGUILayout.Slider(content, ivyProfile.primaryWeight, 0, 2f);
-
-                    content = new GUIContent("Random Spread %", "How much to randomly roam outwards in different directions. At 100%, ivy will spread out to cover more of an area.\n(default: 50%)");
-                    ivyProfile.randomWeight = EditorGUILayout.Slider(content, ivyProfile.randomWeight, 0, 2f);
-
-                    content = new GUIContent("Gravity Weight %", "How much gravity should pull down floating branches.\n(default: 300%)");
-                    ivyProfile.gravityWeight = EditorGUILayout.Slider(content, ivyProfile.gravityWeight, 0, 5f);
-
-                    content = new GUIContent("Surface Cling %", "How much to cling / adhere to nearby surfaces.\n(default: 100%)");
-                    ivyProfile.adhesionWeight = EditorGUILayout.Slider(content, ivyProfile.adhesionWeight, 0, 2f);
-                }
-
-                // =========
-
-                content = new GUIContent("3D Mesh Settings", "After ivy is done growing, you can make a 3D mesh model based on its path. These settings control how the ivy 3D model will look.");
-                ivyBehavior.showMeshFoldout = EditorGUILayout.Foldout(ivyBehavior.showMeshFoldout, content, true);
-
-                if ( ivyBehavior.showMeshFoldout ) {
-                    content = new GUIContent("Name Format", "All 3D ivy object names use this template, with numbered placeholders to fill-in data.\n{0}: branch count\n{1}: seed position\n(default: 'Ivy[{0}]{1}')");
-                    ivyProfile.namePrefix = EditorGUILayout.DelayedTextField(content, ivyProfile.namePrefix);
-
-                    content = new GUIContent("Batching Static", "Set ivy meshes to 'batch' draw calls for huge performance gains. Always enable this unless you're moving / rotating / scaling the ivy during the game.\n(default: true)");
-                    ivyProfile.markMeshAsStatic = EditorGUILayout.Toggle( content, ivyProfile.markMeshAsStatic );
-
-                    content = new GUIContent("Lighting Static", "Set ivy meshes to use lightmapping AND generate lightmap UV2s for the ivy.\n- Make sure your lightmap luxel resolution is high enough, or else it'll probably look very spotty.\n- Also make sure your lightmap atlas size is big enough, or else the lightmapped ivy won't batch.\n(default: false)");
-                    ivyProfile.useLightmapping = EditorGUILayout.Toggle( content, ivyProfile.useLightmapping );
-
-                    content = new GUIContent("Branch Thickness", "Width of the branch meshes in world units. (default: 0.05)");
-                    ivyProfile.ivyBranchSize = EditorGUILayout.Slider(content, ivyProfile.ivyBranchSize, 0.01f, 0.5f);
-
-                    content = new GUIContent("Branch Smooth", "How many Catmull-Rom spline subdivisions to add to each branch to smooth out the line. For example, a value of 2 doubles your branch vert count. Make sure you use Branch Optimize with this! A value of 1 means don't do any smoothing.\n(default: 2)");
-                    ivyProfile.branchSmooth = EditorGUILayout.IntSlider(content, ivyProfile.branchSmooth, 1, 4);
-
-                    content = new GUIContent("Branch Optimize %", "How much to simplify branches. High percentages will lower verts and polycounts for branches, but might look jagged or lose small details. 0% means no optimization will happen.\n(default: 60%)");
-                    ivyProfile.branchOptimize = EditorGUILayout.IntSlider(content, Mathf.RoundToInt(ivyProfile.branchOptimize * 100f), 0, 100) * 0.01f;
-
-                    content = new GUIContent("Leaf Size", "Size of leaves in world units. Smaller leaves = more leaves (to maintain the same % of coverage) which means more polygons, so bigger leaves are usually better for performance.\n(default: 0.15)");
-                    ivyProfile.ivyLeafSize = EditorGUILayout.Slider(content, ivyProfile.ivyLeafSize, 0.05f, 1f);
-
-                    if ( ivyProfile.ivyLeafSize == 0f ) {
-                        EditorGUILayout.HelpBox("No leaf mesh when Leaf Size = 0!", MessageType.Warning);
-                    }
-
-                    content = new GUIContent("Leaf Density %", "How many leaves on each branch. 0% means no leaves, 100% is very bushy.\n(default: 50%)");
-                    ivyProfile.leafProbability = EditorGUILayout.Slider(content, ivyProfile.leafProbability, 0, 1f);
-
-                    if ( ivyProfile.leafProbability == 0f ) {
-                        EditorGUILayout.HelpBox("No leaf mesh when Leaf Density = 0!", MessageType.Warning);
-                    }
-
-                    content = new GUIContent("Leaf Sunlight %", "Approximates how ivy wants to be in the sun. More leaves on floors / roofs, fewer leaves on ceilings. 0% means leaves will spawn evenly regardless of surface.\n(default: 100%)");
-                    ivyProfile.leafSunlightBonus = EditorGUILayout.Slider(content, ivyProfile.leafSunlightBonus, 0, 1f);
-
-                    content = new GUIContent("Branch Material", "Unity material to use for branches. It doesn't need to be very high resolution or detailed, unless you set your Branch Width to be very thick. Example materials can be found in /Hedera/Runtime/Materials/");
-                    ivyProfile.branchMaterial = EditorGUILayout.ObjectField(content, ivyProfile.branchMaterial, typeof(Material), false) as Material;
-                    
-                    if ( ivyProfile.branchMaterial == null) {
-                        EditorGUILayout.HelpBox("Branch Material is undefined. Branch meshes will use default material.", MessageType.Warning);
-                    }
-                    
-                    content = new GUIContent("Leaf Material", "Unity material to use for leaves. Example materials are in /Hedera/Runtime/Materials/");
-                    ivyProfile.leafMaterial = EditorGUILayout.ObjectField(content, ivyProfile.leafMaterial, typeof(Material), false) as Material;
-
-                    if ( ivyProfile.leafMaterial == null) {
-                        EditorGUILayout.HelpBox("Leaf Material is undefined. Leaf meshes will use default material.", MessageType.Warning);
-                    }
-                }
-
-                if ( EditorGUI.EndChangeCheck() ) {
-                    Undo.RegisterCompleteObjectUndo(ivyBehavior.profileAsset, "Hedera > Edit Ivy Settings" );
-                    EditorUtility.SetDirty( ivyBehavior.profileAsset );
-                }
+                ivyProfileEditor.OnInspectorGUI();
             }
-            EditorGUILayout.Space();
             EditorGUILayout.EndFadeGroup();
             EditorGUILayout.EndVertical();
 
+            DrawUILine();
             GUILayout.Label("Ivy Painter", EditorStyles.boldLabel);
 
             // plant root creation button
@@ -428,7 +299,7 @@ namespace Hedera
                         IvyMesh.GenerateMesh(ivy, ivyProfile, ivyProfile.useLightmapping, true);
                         Repaint();
                     }
-                    GUI.enabled = ivy.leafMesh != null && ivy.branchMesh != null;
+                    GUI.enabled = ivy.branchMesh != null;
                     content = new GUIContent( "OBJ", iconExport, "Export ivy mesh to .OBJ file\n(Note: .OBJs only support one UV channel so they cannot have lightmap UVs, Unity must unwrap them upon import)");
                     if (GUILayout.Button(content, EditorStyles.miniButtonMid, GUILayout.Width(24), GUILayout.Height(16)))
                     {
@@ -465,7 +336,20 @@ namespace Hedera
             
             EditorGUILayout.Space();
         }
-
+        public static void DrawUILine(Color color = default(Color), int thickness = 1, int padding = 4)
+        {
+            if ( color == default(Color)) {
+                color = Color.white * 0.68f;
+            }
+            // Rect r = GUILayoutUtility.GetLastRect();
+            Rect r = EditorGUILayout.GetControlRect(GUILayout.Height(padding+thickness));
+            r.height = thickness;
+            r.y+=padding/2;
+            r.x-=2;
+            r.width +=6;
+            // EditorGUILayout.LabelField("", GUILayout.Height(thickness+padding));
+            EditorGUI.DrawRect(r, color);
+        }
 
     }
 }

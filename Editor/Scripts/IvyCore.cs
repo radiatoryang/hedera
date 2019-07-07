@@ -27,6 +27,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEditor;
+using System.IO;
+using UnityEngine.SceneManagement;
 
 namespace Hedera
 {
@@ -58,20 +60,18 @@ namespace Hedera
         }
 
 		// TODO:
-		// - add "show advanced"
+		// x add "show advanced"
 		// - add "leaf sun tilt"
 		// - save mesh in external asset?
+		// x move profile editor to profile inspector
+		// - try to find default materials for new ivy profiles (or add "fix" button)
+		// - display warning about editing in 2018.3 prefab space
 
 		// - let user replace mesh with OBJ (one-time operation)
-		// - unity 2018.3+ prefab management stuff
-		// 		- can't save changes while editing?
-		// 		- flag in Unity 2018.3 that changes to prefabs are permanent
-		// - vertex colors
-		// - roots that didn't change should get skipped in vertex generation
-		// 		- cache branch and leaf mesh data for each root?
+		// x vertex colors
+		// - let user specify branch sides (2-6)
+		// - test: merging should use mesh cache
 
-		// - profile and optimize
-		// - cartoon brush, cable brush
 		// - test build out
 
         void OnEditorUpdate()
@@ -80,7 +80,11 @@ namespace Hedera
             {
                 lastRefreshTime = EditorApplication.timeSinceStartup;
 				CacheTerrainColliderStuff();
+				adhesionMeshCache.Clear();
                 foreach (var ivyB in ivyBehaviors) {
+					if ( ivyB == null || ivyB.profileAsset == null) {
+						continue;
+					}
 					foreach ( var ivy in ivyB.ivyGraphs) {
 						if ( ivy.isGrowing ) {
 							GrowIvyStep(ivy, ivyB.profileAsset.ivyProfile);
@@ -88,7 +92,7 @@ namespace Hedera
 								IvyMesh.GenerateMesh(ivy, ivyB.profileAsset.ivyProfile);
 							}
 						}
-						if ( !ivy.isGrowing && ivyB.profileAsset.ivyProfile.useLightmapping && ivy.generateMeshDuringGrowth && ivy.dirtyUV2s ) {
+						if ( !ivy.isGrowing && ivy.generateMeshDuringGrowth && ivyB.profileAsset.ivyProfile.useLightmapping && ivy.dirtyUV2s ) {
 							IvyMesh.GenerateMesh( ivy, ivyB.profileAsset.ivyProfile, true);
 						}
 					}
@@ -127,6 +131,30 @@ namespace Hedera
             EditorUtility.FocusProjectWindow();
 
             Selection.activeObject = asset;
+			return asset;
+		}
+
+		public static IvyDataAsset GetDataAsset(GameObject forObject) {
+			var scene= forObject.scene;
+			var mainFolder = Path.GetDirectoryName( scene.path );
+			string path = mainFolder + "/" + scene.name + "/HederaData.asset";
+
+			var asset = AssetDatabase.LoadAssetAtPath<IvyDataAsset>(path);
+			if ( asset == null) {
+				asset = CreateNewDataAsset( mainFolder, scene.name, Path.GetDirectoryName(path));
+			}
+			return asset;
+		}
+
+		public static IvyDataAsset CreateNewDataAsset(string mainFolder, string sceneName, string path) {
+			if ( !AssetDatabase.IsValidFolder(path) ) {
+				var folderGUID = AssetDatabase.CreateFolder( mainFolder, sceneName );
+				path = AssetDatabase.GUIDToAssetPath(folderGUID);
+			}
+
+			IvyDataAsset asset = ScriptableObject.CreateInstance<IvyDataAsset>();
+            AssetDatabase.CreateAsset(asset, path + "/HederaData.asset");
+            AssetDatabase.SaveAssets();
 			return asset;
 		}
 
@@ -177,12 +205,13 @@ namespace Hedera
 			newPos -= graph.seedPos; // convert to local space
 
 			// find the nearest root end node, and continue off of it
-			var closestRoot = graph.roots.OrderBy( root => Vector3.Distance( newPos, root.nodes.Last().localPos ) ).FirstOrDefault();
-			if ( closestRoot == null ) {
-				return;
-			}
+			// var closestRoot = graph.roots.OrderBy( root => Vector3.Distance( newPos, root.nodes.Last().localPos ) ).FirstOrDefault();
+			// if ( closestRoot == null ) {
+			// 	return;
+			// }
+			var closestRoot = graph.roots[0];
 
-			var lastNode = closestRoot.nodes.Last();
+			var lastNode = closestRoot.nodes[ closestRoot.nodes.Count-1 ];
 			var growVector = newPos - lastNode.localPos;
 
 			var newNode = new IvyNode();
@@ -248,7 +277,7 @@ namespace Hedera
                 //grow vectors: primary direction, random influence, and adhesion of scene objectss
 
                 //primary vector = weighted sum of previous grow vectors plus a little bit upwards
-                Vector3 primaryVector = Vector3.Normalize(lastNode.primaryGrowDir * 2f + Vector3.up * 0.5f);
+                Vector3 primaryVector = Vector3.Normalize(lastNode.primaryGrowDir * 2f + Vector3.up);
 
                 //random influence plus a little upright vector
 				Vector3 exploreVector = lastNode.localPos - root.nodes[0].localPos;
@@ -331,12 +360,12 @@ namespace Hedera
 			var nearbyRootCount = graph.roots.Where( r => (r.nodes[0].localPos - fromNode.localPos).sqrMagnitude < ivyProfile.ivyStepDistance * ivyProfile.ivyStepDistance ).Count();
 			if ( forceMinLength <= 0f ) {
 				if ( graph.roots.Count >= ivyProfile.maxBranchesTotal 
-					|| nearbyRootCount > ivyProfile.branchingProbability * 2f
-					|| root.childCount > ivyProfile.branchingProbability * 3f
+					|| nearbyRootCount > ivyProfile.branchingProbability * 2.5f
+					|| root.childCount > ivyProfile.branchingProbability * 3.5f
 					|| root.nodes.Count < 3
-					|| root.parents > ivyProfile.branchingProbability * 8f
+					|| root.parents > ivyProfile.branchingProbability * 9f
 					|| ivyProfile.maxLength - fromNode.lengthCumulative < ivyProfile.minLength 
-					|| Random.value * Mathf.Clamp(weight, 0f, 1f - ivyProfile.branchingProbability) > Mathf.Pow(ivyProfile.branchingProbability, 1.5f )
+					|| Random.value * Mathf.Clamp(weight, 0f, 1f - ivyProfile.branchingProbability) > ivyProfile.branchingProbability
 				) {
 					return false;
 				}
@@ -349,7 +378,7 @@ namespace Hedera
 			newRootNode.adhesionVector = fromNode.adhesionVector;
 			newRootNode.length = 0.0f;
 			newRootNode.lengthCumulative = forceMinLength > 0f ? 0f : fromNode.lengthCumulative;
-			newRootNode.floatingLength = fromNode.floatingLength;
+			newRootNode.floatingLength = forceMinLength > 0f ? 0f : fromNode.floatingLength;
 			newRootNode.isClimbing = true;
 
 			//new ivy root
@@ -385,9 +414,6 @@ namespace Hedera
 					if ( !adhesionMeshCache.ContainsKey(mesh) ) {
 						adhesionMeshCache.Add( mesh, mesh.vertices );
 					} 
-					if ( adhesionMeshCache[mesh].Length != mesh.vertices.Length ) {
-						adhesionMeshCache[mesh] = mesh.vertices;
-					}
 
 					// check for a close-enough vertex
 					float sqrMeshDistance = ivyProfile.maxAdhesionDistance * ivyProfile.maxAdhesionDistance * 4f;

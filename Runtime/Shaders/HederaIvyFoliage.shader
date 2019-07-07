@@ -6,6 +6,7 @@ Shader "Nature/HederaIvyFoliage" {
 	Properties {
 		[Header(Graphical Properties)]
     	_Color ("Main Color", Color) = (1,1,1,1)
+		_VertexColor ("Vertex Color Strength", Range(0,1)) = 0.5
     	_Metallic ("Metallic", Range (0, 1)) = 0
     	_Glossiness ("Smoothness", Range (0, 1)) = 0.5
 
@@ -36,12 +37,14 @@ Shader "Nature/HederaIvyFoliage" {
 		half _Glossiness;
 		half _Metallic;
 		half _BumpScale;
+		half _VertexColor;
 		float _ShakeTime;
 		float _ShakeBending;
 
 		struct Input {
     		float2 uv_MainTex;
     		float2 uv_BumpMap;
+			float4 color : COLOR; // Vertex Color
 		};
 
 		// Calculate a 4 fast sine-cosine pairs
@@ -112,7 +115,7 @@ Shader "Nature/HederaIvyFoliage" {
 		}
 
 		void surf (Input IN, inout SurfaceOutputStandard o) {
-    		fixed4 c = tex2D (_MainTex, IN.uv_MainTex) * _Color;
+    		fixed4 c = tex2D (_MainTex, IN.uv_MainTex) * _Color * lerp(fixed4(1,1,1,1), IN.color, _VertexColor);
     		o.Albedo = c.rgb;
     		o.Normal = UnpackScaleNormal (tex2D (_BumpMap, IN.uv_BumpMap), _BumpScale);
     		o.Metallic = tex2D (_MetallicGlossMap, IN.uv_MainTex) * _Metallic;
