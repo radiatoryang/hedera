@@ -60,7 +60,6 @@ namespace Hedera
         }
 
 		// TODO:
-		// - let user move seed position to new pos (arrow icon)
 		// - test in 5.6.7
 		// - write documentation, make gifs, done!
 	
@@ -205,6 +204,7 @@ namespace Hedera
             var graph = new IvyGraph();
 	        graph.roots.Clear();
 			graph.seedPos = seedPos;
+			graph.seedNormal = adhesionVector;
 			graph.generateMeshDuringGrowth = generateMeshPreview;
 			graph.rootBehavior = root;
 
@@ -552,17 +552,14 @@ namespace Hedera
 	        return adhesionVector;
         }
 
-		public static void RegenerateDebugLines( IvyRoot root) {
+		public static void RegenerateDebugLines( Vector3 seedPos, IvyRoot root) {
 			root.debugLineSegmentsArray = new Vector3[(root.nodes.Count-1)*2];
-			if ( root.nodes.Count <= 2 ) {
-				return;
-			}
 			
 			var cache = IvyRoot.GetMeshCacheFor(root);
 			int nodeCounter = 0;
 			for( int i=0; i<cache.debugLineSegmentsArray.Length; i+=2) {
-				cache.debugLineSegmentsArray[i] = root.nodes[nodeCounter].p;
-				cache.debugLineSegmentsArray[i+1] = root.nodes[nodeCounter+1].p;
+				cache.debugLineSegmentsArray[i] = root.nodes[nodeCounter].p + seedPos;
+				cache.debugLineSegmentsArray[i+1] = root.nodes[nodeCounter+1].p + seedPos;
 				nodeCounter++;
 			}
 		}
@@ -687,7 +684,9 @@ namespace Hedera
 			if ( asset.meshList.ContainsKey(meshID) && asset.meshList[meshID] != null ) {
 				Undo.DestroyObjectImmediate( asset.meshList[meshID] );
 				asset.meshList.Remove(meshID);
-				AssetDatabase.SaveAssets();
+				if ( !saveChanges ) {
+					AssetDatabase.SaveAssets();
+				}
 				return true;
 			}
 			return false;

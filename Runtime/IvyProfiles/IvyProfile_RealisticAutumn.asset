@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: IvyProfile_RealisticAutumn
   m_EditorClassIdentifier: 
   ivyProfile:
-    showAdvanced: 0
+    showAdvanced: 1
     showGrowthFoldout: 1
     showAIFoldout: 1
     showMeshFoldout: 1
@@ -36,7 +36,7 @@ MonoBehaviour:
     adhesionWeight: 1
     branchingProbability: 0.35
     leafProbability: 0.25
-    leafSunlightBonus: 1
+    leafSunlightBonus: 0.5
     branchOptimize: 0.39999998
     branchSmooth: 2
     branchTaper: 1
@@ -44,6 +44,8 @@ MonoBehaviour:
     markMeshAsStatic: 1
     useLightmapping: 0
     meshCompress: 1
+    castShadows: 1
+    receiveShadows: 1
     useVertexColors: 1
     leafVertexColors:
       serializedVersion: 2

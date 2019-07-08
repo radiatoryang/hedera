@@ -131,7 +131,11 @@ namespace Hedera {
 
             if ( ivyProfile.showMeshFoldout ) {
                 content = new GUIContent("Branch Thickness", "Width (diameter) of the branch meshes in world units. (default: 0.05)");
-                ivyProfile.ivyBranchSize = EditorGUILayout.Slider(content, ivyProfile.ivyBranchSize, 0.01f, 0.5f);
+                ivyProfile.ivyBranchSize = EditorGUILayout.Slider(content, ivyProfile.ivyBranchSize, 0f, 0.5f);
+
+                if ( ivyProfile.ivyBranchSize == 0f ) {
+                    EditorGUILayout.HelpBox("No branches when Thickness is 0", MessageType.Warning);
+                }
 
                 content = new GUIContent("Leaf Size Radius", "Radial size of leaves in world units. Smaller leaves = more leaves (to maintain the same % of coverage) which means more polygons, so bigger leaves are usually better for performance.\n(default: 0.15)");
                 ivyProfile.ivyLeafSize = EditorGUILayout.Slider(content, ivyProfile.ivyLeafSize, 0.05f, 1f);

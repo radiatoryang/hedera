@@ -278,7 +278,7 @@ namespace Hedera
 		public bool isGrowing = false;
 		public bool isVisible = true;
 		public bool dirtyUV2s = false;
-		public Vector3 seedPos;
+		public Vector3 seedPos, seedNormal = Vector3.up;
 		public bool generateMeshDuringGrowth = false;
 		
 		 // ivy roots

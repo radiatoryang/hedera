@@ -12,7 +12,7 @@ namespace Hedera
     public class IvyEditor : Editor
     {
         IvyBehavior ivyBehavior;
-        IvyGraph currentIvyGraph;
+        IvyGraph currentIvyGraph, currentIvyGraphMove;
         Editor ivyProfileEditor;
 
         bool isPlantingModeActive;
@@ -25,9 +25,13 @@ namespace Hedera
         double lastEditorTime, deltaTime;
         // private Quaternion mouseRot;
 
-        Texture iconVisOn, iconVisOff, iconLeaf, iconMesh, iconExport, iconTrash, iconPaint;
+        Texture iconVisOn, iconVisOff, iconLeaf, iconMesh, iconExport, iconTrash, iconPaint, iconMove;
+
+        Tool LastTool = Tool.None;
 
         void OnEnable() {
+            currentIvyGraph = null;
+            currentIvyGraphMove = null;
             iconVisOn = EditorGUIUtility.IconContent("animationvisibilitytoggleon").image;
             iconVisOff = EditorGUIUtility.IconContent("animationvisibilitytoggleoff").image;
             iconLeaf = EditorGUIUtility.IconContent("tree_icon_leaf").image;
@@ -35,6 +39,7 @@ namespace Hedera
             iconExport = EditorGUIUtility.IconContent("PrefabModel Icon").image;
             iconTrash = EditorGUIUtility.IconContent("TreeEditor.Trash").image;
             iconPaint = EditorGUIUtility.IconContent("ClothInspector.PaintTool").image;
+            iconMove = EditorGUIUtility.IconContent("MoveTool").image;
         }
 
         // got working painter code from https://github.com/marmitoTH/Unity-Prefab-Placement-Editor
@@ -44,17 +49,49 @@ namespace Hedera
                 ivyBehavior = (IvyBehavior)target;
             }
 
+            Handles.color = ivyBehavior.debugColor;
             foreach ( var graph in ivyBehavior.ivyGraphs) {
-                if ( graph.isVisible && (graph.branchMF == null || graph.branchR == null ) ) {
+                if ( graph.isVisible && (graph.branchMF == null || graph.branchR == null || (graph.rootGO != null && Vector3.SqrMagnitude(graph.rootGO.transform.position - graph.seedPos) > 0.001f)) ) {
+                    DrawThiccDisc( graph.seedPos, graph.seedNormal, 0.05f );
                     DrawDebugIvy( graph );
                 }
+            }
+
+            Event current = Event.current;
+
+            // change current editor tool for painting and positioning
+            if ( (isPlantingModeActive || currentIvyGraphMove != null) ) {
+                if ( Tools.current != Tool.None ) {
+                    LastTool = Tools.current;
+                    Tools.current = Tool.None;
+                    Tools.hidden = true;
+                }
+            } else if ( LastTool != Tool.None ) {
+                Tools.current = LastTool;
+                LastTool = Tool.None;
+                Tools.hidden = false;
+            }
+
+            if ( currentIvyGraphMove != null ) {
+                if (current.type == EventType.MouseDrag) {
+                    Undo.RegisterCompleteObjectUndo( ivyBehavior, "Hedera > Move Ivy Seed Position" );
+                    if ( currentIvyGraphMove.rootGO != null) {
+                        Undo.RegisterCompleteObjectUndo( currentIvyGraphMove.rootGO, "Hedera > Move Ivy Seed Position" );
+                    }
+                }
+                isPlantingModeActive = false;
+                currentIvyGraphMove.seedPos = Handles.PositionHandle(currentIvyGraphMove.seedPos, Quaternion.identity);
+                if ( currentIvyGraphMove.rootGO != null) {
+                    currentIvyGraphMove.rootGO.transform.position = currentIvyGraphMove.seedPos;
+                }
+                Handles.Label( currentIvyGraphMove.seedPos, currentIvyGraphMove.seedPos.ToString() );
             }
 
             if ( !isPlantingModeActive ) {
                 return;
             }
 
-            Event current = Event.current;
+
             int controlId = GUIUtility.GetControlID(GetHashCode(), FocusType.Passive);
 
             MousePosition();
@@ -139,22 +176,29 @@ namespace Hedera
                 mouseNormal = hit.normal;
                 // mouseRot = Quaternion.FromToRotation(Vector3.up, hit.normal);
                 Handles.color = Color.blue;
-                Handles.DrawWireDisc(mousePos, hit.normal, Mathf.Max(0.1f, ivyBehavior.profileAsset.ivyProfile.ivyStepDistance) - 0.01f );
-                Handles.DrawWireDisc(mousePos, hit.normal, Mathf.Max(0.1f, ivyBehavior.profileAsset.ivyProfile.ivyStepDistance) );
-                Handles.DrawWireDisc(mousePos, hit.normal, Mathf.Max(0.1f, ivyBehavior.profileAsset.ivyProfile.ivyStepDistance) + 0.01f );
+                DrawThiccDisc(mousePos, hit.normal, Mathf.Max(0.1f, ivyBehavior.profileAsset.ivyProfile.ivyStepDistance) );
                 Handles.DrawLine(mousePos, mousePos + hit.normal * 0.25f);
             }
         }
 
-    	public void DrawDebugIvy(IvyGraph graph, Color debugColor = default(Color)) {
-			if ( debugColor == default(Color)) {
-				debugColor = ivyBehavior.debugColor;
-			}
-            Handles.color = debugColor;
+        void DrawThiccDisc(Vector3 mousePos, Vector3 normal, float radius) {
+            var originalColor = Handles.color;
+            Handles.color = new Color( originalColor.r, originalColor.g, originalColor.b, 0.4f);
+            Handles.DrawSolidDisc( mousePos, normal, radius);
+            Handles.color = originalColor;
+            Handles.DrawWireDisc(mousePos, normal, radius - 0.01f );
+            Handles.DrawWireDisc(mousePos, normal, radius );
+            Handles.DrawWireDisc(mousePos, normal, radius + 0.01f );
+        }
+
+    	public void DrawDebugIvy(IvyGraph graph) {
+            // Handles.zTest = UnityEngine.Rendering.CompareFunction.Always;
 
             foreach ( var root in graph.roots ) {
-                if ( root.debugLineSegmentsArray == null || root.debugLineSegmentsArray.Length != (root.nodes.Count-1)*2f ) {
-                    IvyCore.RegenerateDebugLines( root );
+                if ( root.nodes.Count < 2) { continue; }
+                if ( root.debugLineSegmentsArray == null || root.debugLineSegmentsArray.Length != (root.nodes.Count-1)*2 || Vector3.SqrMagnitude(root.debugLineSegmentsArray[0] - (root.nodes[0].p+graph.seedPos)) > 0.01f ) {
+                    IvyCore.RegenerateDebugLines(graph.seedPos, root );
+                    // Debug.LogFormat("regenerting {0}", Vector3.SqrMagnitude(root.debugLineSegmentsArray[0] - (root.nodes[0].p+graph.seedPos)) );
                 }
                 if ( root.debugLineSegmentsArray != null ) {
                     Handles.DrawLines( root.debugLineSegmentsArray );
@@ -302,11 +346,21 @@ namespace Hedera
                 GUI.color = ivy.isVisible ? oldColor : Color.gray;
                 var eyeIcon = ivy.isVisible ? iconVisOn : iconVisOff;
                 content = new GUIContent( eyeIcon, "Click to toggle visibility for this ivy plant.\n(Enable / disable the game object.)");
-                if ( GUILayout.Button(content, GUILayout.Width(24) )) {
+                if ( GUILayout.Button(content, EditorStyles.miniButtonLeft, GUILayout.Height(16), GUILayout.Width(24) )) {
                     ivy.isVisible = !ivy.isVisible;
                     if ( ivy.rootGO != null) {
                         ivy.rootGO.SetActive( ivy.isVisible );
                     }
+                }
+                GUI.color = oldColor;
+
+                GUI.color = ivy != currentIvyGraphMove ? oldColor : Color.gray;
+                content = new GUIContent( iconMove, "Click to start moving the seed position for this ivy plant.");
+                if ( GUILayout.Button(content, EditorStyles.miniButtonRight, GUILayout.Height(16), GUILayout.Width(24) ) ) {
+                    if ( ivy.rootGO != null) {
+                        ivy.rootGO.transform.position = ivy.seedPos;
+                    }
+                    currentIvyGraphMove = ivy == currentIvyGraphMove ? null : ivy;
                 }
                 GUI.color = oldColor;
 
@@ -336,7 +390,7 @@ namespace Hedera
                         IvyMesh.GenerateMesh(ivy, ivyProfile, ivyProfile.useLightmapping, true);
                         Repaint();
                     }
-                    GUI.enabled = ivy.branchMF != null;
+                    GUI.enabled = ivy.branchMF != null || ivy.leafMF != null;
                     content = new GUIContent( "OBJ", iconExport, "Export ivy mesh to .OBJ file\n(Note: .OBJs only support one UV channel so they cannot have lightmap UVs, Unity must unwrap them upon import)");
                     if (GUILayout.Button(content, EditorStyles.miniButtonMid, GUILayout.Width(24), GUILayout.Height(16)))
                     {
@@ -446,8 +500,9 @@ namespace Hedera
 
                     if ( lastDataAsset != null ) {
                         foreach ( var meshID in lastMeshIDs ) {
-                            IvyCore.TryDestroyMesh( meshID, lastDataAsset );
+                            IvyCore.TryDestroyMesh( meshID, lastDataAsset, false );
                         }
+                        IvyCore.needToSaveAssets = true;
                     }
 
                 }

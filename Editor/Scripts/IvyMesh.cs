@@ -84,34 +84,41 @@ namespace Hedera
             //     Debug.DrawRay( vert + ivyGraph.seedPos, Vector3.up, Color.cyan, 1f, false );
             // }
 
-            CheckMeshDataAsset( ref ivyGraph.branchMeshID, myAsset, ivyProfile.meshCompress);
-            branchMesh = myAsset.meshList[ivyGraph.branchMeshID];
-         
-            if ( ivyGraph.branchMF == null || ivyGraph.branchR == null) {
-                CreateIvyMeshObject(ivyGraph, ivyProfile, branchMesh, false);
-            }
-            RefreshMeshObject( ivyGraph.branchMF, ivyProfile );
-
-            branchMesh.Clear();
-            ivyGraph.branchMF.name = ivyGraph.rootGO.name + "_Branches";
-            ivyGraph.branchR.shadowCastingMode = ivyProfile.castShadows;
-            ivyGraph.branchR.receiveShadows = ivyProfile.receiveShadows;
-            branchMesh.name = ivyGraph.branchMF.name;
-            branchMesh.SetVertices( verticesAll);
-            branchMesh.SetUVs(0, texCoordsAll);
-            if ( ivyProfile.useLightmapping && doUV2s ) {
-                PackBranchUV2s(ivyGraph);
-            }
-            branchMesh.SetTriangles(trianglesAll, 0);
-            branchMesh.RecalculateBounds();
-            branchMesh.RecalculateNormals();
-            branchMesh.RecalculateTangents();
-            #if UNITY_2017_1_OR_NEWER
-            MeshUtility.Optimize( branchMesh );
-            #endif
-            ivyGraph.branchMF.sharedMesh = branchMesh;
-            ivyGraph.branchR.sharedMaterial = ivyProfile.branchMaterial != null ? ivyProfile.branchMaterial : AssetDatabase.GetBuiltinExtraResource<Material>("Default-Diffuse.mat");
+            if ( ivyProfile.ivyBranchSize < 0.0001f ) {
+                if ( ivyGraph.branchMF != null ) {
+                    IvyCore.DestroyObject( ivyGraph.branchMF.gameObject );
+                }
+                IvyCore.TryDestroyMesh( ivyGraph.branchMeshID, myAsset, true);
+            } else {
+                CheckMeshDataAsset( ref ivyGraph.branchMeshID, myAsset, ivyProfile.meshCompress);
+                branchMesh = myAsset.meshList[ivyGraph.branchMeshID];
             
+                if ( ivyGraph.branchMF == null || ivyGraph.branchR == null) {
+                    CreateIvyMeshObject(ivyGraph, ivyProfile, branchMesh, false);
+                }
+                RefreshMeshObject( ivyGraph.branchMF, ivyProfile );
+
+                branchMesh.Clear();
+                ivyGraph.branchMF.name = ivyGraph.rootGO.name + "_Branches";
+                ivyGraph.branchR.shadowCastingMode = ivyProfile.castShadows;
+                ivyGraph.branchR.receiveShadows = ivyProfile.receiveShadows;
+                branchMesh.name = ivyGraph.branchMF.name;
+                branchMesh.SetVertices( verticesAll);
+                branchMesh.SetUVs(0, texCoordsAll);
+                if ( ivyProfile.useLightmapping && doUV2s ) {
+                    PackBranchUV2s(ivyGraph);
+                }
+                branchMesh.SetTriangles(trianglesAll, 0);
+                branchMesh.RecalculateBounds();
+                branchMesh.RecalculateNormals();
+                branchMesh.RecalculateTangents();
+                #if UNITY_2017_1_OR_NEWER
+                MeshUtility.Optimize( branchMesh );
+                #endif
+                ivyGraph.branchMF.sharedMesh = branchMesh;
+                ivyGraph.branchR.sharedMaterial = ivyProfile.branchMaterial != null ? ivyProfile.branchMaterial : AssetDatabase.GetBuiltinExtraResource<Material>("Default-Diffuse.mat");
+            }
+
             // Leaves mesh debug
             // Debug.Log( "leafVertices: " + ivyGraph.leafVertices.Count );
             // Debug.Log( "leafTris: " + string.Join(", ", ivyGraph.leafTriangles.Select( tri => tri.ToString() ).ToArray()) );
@@ -119,48 +126,41 @@ namespace Hedera
             // don't do leaf mesh if it's unnecessary
             if ( ivyProfile.leafProbability < 0.001f) {
                 if ( ivyGraph.leafMF != null ) {
-                    Object.DestroyImmediate( ivyGraph.leafMF.gameObject );
+                    IvyCore.DestroyObject( ivyGraph.leafMF.gameObject );
                 }
-                if ( leafMesh != null) {
-                    Object.DestroyImmediate( leafMesh, true );
+                IvyCore.TryDestroyMesh( ivyGraph.leafMeshID, myAsset, true);
+            } else {
+                CheckMeshDataAsset(ref ivyGraph.leafMeshID, myAsset, ivyProfile.meshCompress);
+                leafMesh = myAsset.meshList[ivyGraph.leafMeshID];
+
+                if ( ivyGraph.leafMF == null || ivyGraph.leafR == null) {
+                    CreateIvyMeshObject(ivyGraph, ivyProfile, leafMesh, true);
+                } 
+                RefreshMeshObject( ivyGraph.leafMF, ivyProfile);
+
+                leafMesh.Clear();
+                ivyGraph.leafMF.name = ivyGraph.rootGO.name + "_Leaves";
+                ivyGraph.leafR.shadowCastingMode = ivyProfile.castShadows;
+                ivyGraph.leafR.receiveShadows = ivyProfile.receiveShadows;
+                leafMesh.name = ivyGraph.leafMF.name;
+                leafMesh.SetVertices(leafVerticesAll);
+                leafMesh.SetUVs(0, leafUVsAll);
+                if ( ivyProfile.useLightmapping && doUV2s ) {
+                    PackLeafUV2s( ivyGraph );
                 }
-                ivyGraph.leafMeshID = 0;
-                EditorUtility.SetDirty( myAsset );
-                AssetDatabase.SaveAssets();
-                return;
+                leafMesh.SetTriangles(leafTrianglesAll, 0);
+                if ( ivyProfile.useVertexColors ) {
+                    leafMesh.SetColors( leafColorsAll );
+                }   
+                leafMesh.RecalculateBounds();
+                leafMesh.RecalculateNormals();
+                leafMesh.RecalculateTangents();
+                #if UNITY_2017_1_OR_NEWER
+                MeshUtility.Optimize(leafMesh);
+                #endif
+                ivyGraph.leafMF.sharedMesh = leafMesh;
+                ivyGraph.leafR.sharedMaterial = ivyProfile.leafMaterial != null ? ivyProfile.leafMaterial : AssetDatabase.GetBuiltinExtraResource<Material>("Default-Diffuse.mat");
             }
-
-            CheckMeshDataAsset(ref ivyGraph.leafMeshID, myAsset, ivyProfile.meshCompress);
-            leafMesh = myAsset.meshList[ivyGraph.leafMeshID];
-
-            if ( ivyGraph.leafMF == null || ivyGraph.leafR == null) {
-                CreateIvyMeshObject(ivyGraph, ivyProfile, leafMesh, true);
-            } 
-            RefreshMeshObject( ivyGraph.leafMF, ivyProfile);
-
-            leafMesh.Clear();
-            ivyGraph.leafMF.name = ivyGraph.rootGO.name + "_Leaves";
-            ivyGraph.leafR.shadowCastingMode = ivyProfile.castShadows;
-            ivyGraph.leafR.receiveShadows = ivyProfile.receiveShadows;
-            leafMesh.name = ivyGraph.leafMF.name;
-            leafMesh.SetVertices(leafVerticesAll);
-            leafMesh.SetUVs(0, leafUVsAll);
-            if ( ivyProfile.useLightmapping && doUV2s ) {
-                PackLeafUV2s( ivyGraph );
-            }
-            leafMesh.SetTriangles(leafTrianglesAll, 0);
-            if ( ivyProfile.useVertexColors ) {
-                leafMesh.SetColors( leafColorsAll );
-            }   
-            leafMesh.RecalculateBounds();
-            leafMesh.RecalculateNormals();
-            leafMesh.RecalculateTangents();
-            #if UNITY_2017_1_OR_NEWER
-            MeshUtility.Optimize(leafMesh);
-            #endif
-            ivyGraph.leafMF.sharedMesh = leafMesh;
-            ivyGraph.leafR.sharedMaterial = ivyProfile.leafMaterial != null ? ivyProfile.leafMaterial : AssetDatabase.GetBuiltinExtraResource<Material>("Default-Diffuse.mat");
-
             // EditorUtility.SetDirty( myAsset );
             // AssetDatabase.SaveAssets();
             // AssetDatabase.ImportAsset( AssetDatabase.GetAssetPath(myAsset) );
@@ -431,7 +431,7 @@ namespace Hedera
                             float leafSize = p.ivyLeafSize * sizeWeight + Random.Range(-p.ivyLeafSize, p.ivyLeafSize) * 0.1f + (p.ivyLeafSize * groundedness);
                             leafSize = Mathf.Max( 0.01f, leafSize);
 
-                            Quaternion facing = node.c.sqrMagnitude < 0.001f ? Quaternion.identity : Quaternion.LookRotation( Vector3.Lerp(-node.c, Vector3.up, groundedness * ivyProfile.leafSunlightBonus), Random.onUnitSphere);
+                            Quaternion facing = node.c.sqrMagnitude < 0.001f ? Quaternion.identity : Quaternion.LookRotation( Vector3.Lerp(-node.c, Vector3.up, Mathf.Clamp01(0.68f - Mathf.Abs(groundedness)) * ivyProfile.leafSunlightBonus), Random.onUnitSphere);
                             AddLeafVertex(cache, center, new Vector3(-1f, 1f, 0f), leafSize, facing);
                             AddLeafVertex(cache, center, new Vector3(1f, 1f, 0f), leafSize, facing);
                             AddLeafVertex(cache, center, new Vector3(-1f, -1f, 0f), leafSize, facing);

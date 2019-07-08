@@ -35,8 +35,8 @@ MonoBehaviour:
     gravityWeight: 3
     adhesionWeight: 1
     branchingProbability: 0.25
-    leafProbability: 0.62
-    leafSunlightBonus: 0.5
+    leafProbability: 1
+    leafSunlightBonus: 0.68
     branchOptimize: 0.5
     branchSmooth: 2
     branchTaper: 1
@@ -44,6 +44,8 @@ MonoBehaviour:
     markMeshAsStatic: 1
     useLightmapping: 0
     meshCompress: 2
+    castShadows: 1
+    receiveShadows: 1
     useVertexColors: 1
     leafVertexColors:
       serializedVersion: 2
