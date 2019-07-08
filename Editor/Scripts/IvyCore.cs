@@ -61,7 +61,7 @@ namespace Hedera
 
 		// TODO:
 		// - let user move seed position to current pos (arrow icon)
-		// - double check normals in objexport
+		// - what to do if behavior is inactive?
 		// - add cast shadow / recieve shadow
 		// - test in 5.6.7
 		// - write documentation, make gifs, done!
@@ -305,6 +305,7 @@ namespace Hedera
 				if ( lastNode.cS > ivyProfile.maxLength || (lastNode.cS > Mathf.Max(root.forceMinLength, ivyProfile.minLength) && lastNode.fS > ivyProfile.maxFloatLength) ) {
                     // Debug.LogFormat("root death! cum dist: {0:F2}, floatLength {1:F2}", lastNode.lengthCumulative, lastNode.floatingLength);
 					root.isAlive = false;
+					SmoothGaussianAdhesion(root);
 					continue;
 				}
 
@@ -381,12 +382,44 @@ namespace Hedera
 				root.useCachedBranchData = false;
 				root.useCachedLeafData = false;
 
+				if ( !root.isAlive ) {
+					SmoothGaussianAdhesion(root);
+				}
+
 				var randomNode = root.nodes[Random.Range(0, root.nodes.Count)];
 				if ( TryGrowIvyBranch( graph, ivyProfile, root, randomNode ) ) {
 					break;
 				}
 	        }
 
+        }
+
+		static float[] gaussianFilter = { 1.0f, 2.0f, 4.0f, 7.0f, 9.0f, 10.0f, 9.0f, 7.0f, 4.0f, 2.0f, 1.0f };
+		static List<Vector3> smoothedAdhesionList = new List<Vector3>(512);
+        static void SmoothGaussianAdhesion(IvyRoot root) {
+            //evolve a gaussian filter over the adhesion vectors, but only if it's not growing anymore
+            var e = Vector3.zero;
+            var tmpAdhesion = Vector3.zero;
+   
+            for (int g = 0; g < 3; ++g)
+            {
+                smoothedAdhesionList.Clear(); // reuse allocation in smoothPoints
+                for (int n = 0; n < root.nodes.Count; n++)
+                {
+                    e = Vector3.zero;
+                    for (int i = -5; i <= 5; ++i)
+                    {
+                        tmpAdhesion = root.nodes[Mathf.Clamp(n+1, 0, root.nodes.Count-1)].c;
+                        e += tmpAdhesion * gaussianFilter[i + 5];
+                    }
+                    smoothedAdhesionList.Add(e / 56.0f);
+                }
+
+                for (int i = 0; i < root.nodes.Count; i++)
+                {
+                    root.nodes[i].c = smoothedAdhesionList[i];
+                }
+            }
         }
 
 		static bool TryGrowIvyBranch (IvyGraph graph, IvyProfile ivyProfile, IvyRoot root, IvyNode fromNode, float forceMinLength = -1f) {
@@ -602,6 +635,7 @@ namespace Hedera
 			if ( rebuildMesh ) {
 				Undo.RegisterFullObjectHierarchyUndo( mainGraph.rootGO, "Hedera > Merge Visible");
 				IvyMesh.GenerateMesh( mainGraph, ivyProfile, ivyProfile.useLightmapping, true );
+				AssetDatabase.SaveAssets();
 			}
 
 			return mainGraph;
@@ -646,14 +680,16 @@ namespace Hedera
 
 			// if it's not part of a prefab, then we can safely destroy the mesh
 			var asset = GetDataAsset(go);
-			TryDestroyMesh( ivyGraph.branchMeshID, asset);
-			TryDestroyMesh( ivyGraph.leafMeshID, asset);
+			TryDestroyMesh( ivyGraph.branchMeshID, asset, false);
+			TryDestroyMesh( ivyGraph.leafMeshID, asset, false);
+			AssetDatabase.SaveAssets();
 		}
 
-		public static bool TryDestroyMesh( long meshID, IvyDataAsset asset ) {
+		public static bool TryDestroyMesh( long meshID, IvyDataAsset asset, bool saveChanges=true ) {
 			if ( asset.meshList.ContainsKey(meshID) && asset.meshList[meshID] != null ) {
 				Undo.DestroyObjectImmediate( asset.meshList[meshID] );
 				asset.meshList.Remove(meshID);
+				AssetDatabase.SaveAssets();
 				return true;
 			}
 			return false;

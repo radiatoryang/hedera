@@ -198,35 +198,6 @@ namespace Hedera
         const int MAX_BRANCH_SIDES = 6;
         static bool GenerateMeshData(IvyGraph ivyGraph, IvyProfile ivyProfile, bool forceGeneration = false)
         {
-            //evolve a gaussian filter over the adhesion vectors, but only if it's not growing anymore
-            float[] gaussian = { 1.0f, 2.0f, 4.0f, 7.0f, 9.0f, 10.0f, 9.0f, 7.0f, 4.0f, 2.0f, 1.0f };
-
-            var e = Vector3.zero;
-            var tmpAdhesion = Vector3.zero;
-            smoothPoints.Clear(); // reuse allocation in smoothPoints
-            foreach (var root in ivyGraph.roots)
-            {
-                if ( root.isAlive ) { continue; }
-                for (int g = 0; g < 2; ++g)
-                {
-                    for (int n = 0; n < root.nodes.Count; n++)
-                    {
-                        e = Vector3.zero;
-                        for (int i = -5; i <= 5; ++i)
-                        {
-                            tmpAdhesion = root.nodes[Mathf.Clamp(n+1, 0, root.nodes.Count-1)].c;
-                            e += tmpAdhesion * gaussian[i + 5];
-                        }
-                        smoothPoints[n] = e / 56.0f;
-                    }
-
-                    for (int i = 0; i < root.nodes.Count; i++)
-                    {
-                        root.nodes[i].c = smoothPoints[i];
-                    }
-                }
-            }
-
             var p = ivyProfile;
 
             //branches

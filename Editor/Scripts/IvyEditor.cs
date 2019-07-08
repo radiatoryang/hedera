@@ -97,7 +97,7 @@ namespace Hedera
                 lastPos = Vector3.zero;
                 if ( currentIvyGraph != null) {
                     currentIvyGraph.isGrowing = ivyBehavior.enableGrowthSim;
-                    if ( currentIvyGraph.isGrowing ) {
+                    if ( currentIvyGraph.isGrowing && currentIvyGraph.roots.Count > 0 ) {
                         float branchPercentage = Mathf.Clamp(currentIvyGraph.roots[0].nodes.Last().cS / ivyBehavior.profileAsset.ivyProfile.maxLength, 0f, 0.38f);
                         int branchCount = Mathf.FloorToInt(ivyBehavior.profileAsset.ivyProfile.maxBranchesTotal * branchPercentage * ivyBehavior.profileAsset.ivyProfile.branchingProbability);
                         for( int b=0; b<branchCount; b++) {
