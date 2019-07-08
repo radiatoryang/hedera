@@ -62,6 +62,7 @@ namespace Hedera
 		// TODO:
 		// - change GenerateMesh to use mesh cache directly
 		// - add cast shadow / recieve shadow
+		// - test in 5.6.7
 		// - write documentation, make gifs, done!
 	
 		public static bool needToSaveAssets = false;
@@ -264,9 +265,10 @@ namespace Hedera
 			closestRoot.useCachedLeafData = false;
 			// TryGrowIvyBranch( graph, ivyProfile, closestRoot, newNode );
 
-			closestRoot.debugLineSegmentsList.Add(lastNode.p + graph.seedPos);
-			closestRoot.debugLineSegmentsList.Add(newPos + graph.seedPos);
-			closestRoot.debugLineSegmentsArray = closestRoot.debugLineSegmentsList.ToArray();
+			var cache = IvyRoot.GetMeshCacheFor(closestRoot);
+			cache.debugLineSegmentsList.Add(lastNode.p + graph.seedPos);
+			cache.debugLineSegmentsList.Add(newPos + graph.seedPos);
+			cache.debugLineSegmentsArray = cache.debugLineSegmentsList.ToArray();
 
 			if ( graph.generateMeshDuringGrowth ) {
 				IvyMesh.GenerateMesh( graph, ivyProfile );
@@ -358,10 +360,11 @@ namespace Hedera
                 growVector = newPos - lastNode.p - gravityVector;
 
 				// +graph.seedPos to convert back to world space
-				root.debugLineSegmentsList.Add(lastNode.p + graph.seedPos);
-				root.debugLineSegmentsList.Add(newPos + graph.seedPos);
+				var cache = IvyRoot.GetMeshCacheFor(root);
+				cache.debugLineSegmentsList.Add(lastNode.p + graph.seedPos);
+				cache.debugLineSegmentsList.Add(newPos + graph.seedPos);
 				// cache line segments
-				root.debugLineSegmentsArray = root.debugLineSegmentsList.ToArray();
+				cache.debugLineSegmentsArray = cache.debugLineSegmentsList.ToArray();
 
                 //create next ivy node
                 IvyNode newNode = new IvyNode();
@@ -523,11 +526,12 @@ namespace Hedera
 			if ( root.nodes.Count <= 2 ) {
 				return;
 			}
-
+			
+			var cache = IvyRoot.GetMeshCacheFor(root);
 			int nodeCounter = 0;
-			for( int i=0; i<root.debugLineSegmentsArray.Length; i+=2) {
-				root.debugLineSegmentsArray[i] = root.nodes[nodeCounter].p;
-				root.debugLineSegmentsArray[i+1] = root.nodes[nodeCounter+1].p;
+			for( int i=0; i<cache.debugLineSegmentsArray.Length; i+=2) {
+				cache.debugLineSegmentsArray[i] = root.nodes[nodeCounter].p;
+				cache.debugLineSegmentsArray[i+1] = root.nodes[nodeCounter+1].p;
 				nodeCounter++;
 			}
 		}

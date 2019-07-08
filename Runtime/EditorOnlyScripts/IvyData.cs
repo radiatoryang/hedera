@@ -144,7 +144,7 @@ namespace Hedera
 		// mesh cache for each root
         static Dictionary<long, IvyRootMeshCache> meshCache = new Dictionary<long, IvyRootMeshCache>(64);
 
-        static IvyRootMeshCache Get( long cacheID ) {
+        public static IvyRootMeshCache Get( long cacheID ) {
             if ( meshCache.ContainsKey(cacheID) ) {
                 return meshCache[cacheID];
             } else {
@@ -153,6 +153,10 @@ namespace Hedera
                 return newCache;
             }
         }
+
+		public static IvyRootMeshCache GetMeshCacheFor( IvyRoot root ) {
+			return Get( root.cacheID );
+		}
 
 	    public List<IvyNode> nodes = new List<IvyNode>();
 	    public bool isAlive;
@@ -184,49 +188,43 @@ namespace Hedera
 			get { return Get(cacheID).meshSegments; }
 			set { Get(cacheID).meshSegments = value; }
 		}
-		public List<Vector3> leafPoints {
-			get { return Get(cacheID).leafPoints; }
-			// set { Get(this).leafPoints = value; }
-		}
-		// public bool useCachedBranchData {
-		// 	get { return Get(cacheID).useCachedBranchData; }
-		// 	set { Get(cacheID).useCachedBranchData = value; }
+		// public List<Vector3> leafPoints {
+		// 	get { return Get(cacheID).leafPoints; }
+		// 	// set { Get(this).leafPoints = value; }
 		// }
-		// public bool useCachedLeafData {
-		// 	get { return Get(cacheID).useCachedLeafData; }
-		// 	set { Get(cacheID).useCachedBranchData = value; }
-		// }
+
 		public bool useCachedBranchData = false, useCachedLeafData = false;
 
-		public List<Vector3> vertices {
-			get { return Get(cacheID).vertices; }
-			// set { Get(this).vertices = value; }
-		}
-	    public List<Vector2> texCoords {
-			get { return Get(cacheID).texCoords; }
-			// set { Get(this).texCoords = value; }
-		}
-	    public List<int> triangles {
-			get { return Get(cacheID).triangles; }
-		}
+		// public List<Vector3> vertices {
+		// 	get { return Get(cacheID).vertices; }
+		// 	// set { Get(this).vertices = value; }
+		// }
+	    // public List<Vector2> texCoords {
+		// 	get { return Get(cacheID).texCoords; }
+		// 	// set { Get(this).texCoords = value; }
+		// }
+	    // public List<int> triangles {
+		// 	get { return Get(cacheID).triangles; }
+		// }
 
-		public List<Vector3> leafVertices {
-			get { return Get(cacheID).leafVertices; }
-		}
+		// public List<Vector3> leafVertices {
+		// 	get { return Get(cacheID).leafVertices; }
+		// }
 
-		public List<Vector2> leafUVs {
-			get { return Get(cacheID).leafUVs; }
-		}
-		public List<int> leafTriangles {
-			get { return Get(cacheID).leafTriangles; }
-		}
-		public List<Color> leafVertexColors {
-			get { return Get(cacheID).leafVertexColors; }
-		}
+		// public List<Vector2> leafUVs {
+		// 	get { return Get(cacheID).leafUVs; }
+		// }
+		// public List<int> leafTriangles {
+		// 	get { return Get(cacheID).leafTriangles; }
+		// }
+		// public List<Color> leafVertexColors {
+		// 	get { return Get(cacheID).leafVertexColors; }
+		// }
 
-		public List<Vector3> debugLineSegmentsList {
-			get { return Get(cacheID).debugLineSegmentsList; }
-		}
+		// public List<Vector3> debugLineSegmentsList {
+		// 	get { return Get(cacheID).debugLineSegmentsList; }
+		// }
+
 		public Vector3[] debugLineSegmentsArray {
 			get { return Get(cacheID).debugLineSegmentsArray; }
 			set { Get(cacheID).debugLineSegmentsArray = value; }

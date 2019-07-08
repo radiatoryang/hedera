@@ -244,13 +244,14 @@ namespace Hedera
             //branches
             foreach (var root in ivyGraph.roots)
             {
+                var cache = IvyRoot.GetMeshCacheFor( root );
                 if ( root.useCachedBranchData && !forceGeneration ) {
                     combinedTriangleIndices.Clear();
-                    root.triangles.ForEach( localIndex => combinedTriangleIndices.Add( localIndex + verticesAll.Count) );
+                    cache.triangles.ForEach( localIndex => combinedTriangleIndices.Add( localIndex + verticesAll.Count) );
                     trianglesAll.AddRange ( combinedTriangleIndices );
 
-                    verticesAll.AddRange( root.vertices );
-                    texCoordsAll.AddRange( root.texCoords );
+                    verticesAll.AddRange( cache.vertices );
+                    texCoordsAll.AddRange( cache.texCoords );
                     continue;
                 }
                 root.useCachedBranchData = true;
@@ -258,9 +259,9 @@ namespace Hedera
                 //process only roots with more than one node
                 if (root.nodes.Count < 2) continue;
 
-                root.vertices.Clear();
-                root.texCoords.Clear();
-                root.triangles.Clear();
+                cache.vertices.Clear();
+                cache.texCoords.Clear();
+                cache.triangles.Clear();
 
                 //branch diameter depends on number of parents AND branch taper
                 float local_ivyBranchDiameter = 1.0f / Mathf.Lerp(1f, 1f + root.parents, ivyProfile.branchTaper);
@@ -303,7 +304,7 @@ namespace Hedera
                         Debug.LogWarning("Hedera: ending branch generation early, reached ~65536 vertex limit on mesh " + ivyGraph.seedPos + "... but this could technically be solved in Unity 2017.3+ or later with 32-bit index formats for meshes? The exercise is left to the reader.");
                         break;
                     }
-                    root.meshSegments = n+1;
+                    cache.meshSegments = n+1;
 
                     //weight depending on ratio of node length to total length
                     float taper = 1f * n / useThesePoints.Count;
@@ -323,10 +324,10 @@ namespace Hedera
                         } else {
                             branchVertBasis[b] = RotateAroundAxis(branchVertBasis[0], useThesePoints[n], basis, 6.283f * b / edges);
                         }
-                        root.vertices.Add( branchVertBasis[b] );
+                        cache.vertices.Add( branchVertBasis[b] );
 
                         // generate UVs
-                        root.texCoords.Add( new Vector2( 1f * b / (edges-1), texV) );
+                        cache.texCoords.Add( new Vector2( 1f * b / (edges-1), texV) );
 
                         // add triangles
                         // AddTriangle(root, 4, 1, 5);
@@ -337,32 +338,32 @@ namespace Hedera
 
                     if (n == 0) { // start cap
                         if ( taper > 0f) {
-                            AddTriangle( root, 1, 2, 3);
+                            AddTriangle( cache, 1, 2, 3);
                         }
                         continue;
                     }
 
-                    AddTriangle(root, 4, 1, 5);
-                    AddTriangle(root, 5, 1, 2);
+                    AddTriangle(cache, 4, 1, 5);
+                    AddTriangle(cache, 5, 1, 2);
 
-                    AddTriangle(root, 5, 2, 6);
-                    AddTriangle(root, 6, 2, 3);
+                    AddTriangle(cache, 5, 2, 6);
+                    AddTriangle(cache, 6, 2, 3);
 
-                    AddTriangle(root, 6, 3, 1);
-                    AddTriangle(root, 6, 1, 4);
+                    AddTriangle(cache, 6, 3, 1);
+                    AddTriangle(cache, 6, 1, 4);
 
                     if (n==useThesePoints.Count-1 && taper > 0f) { // end cap
-                        AddTriangle( root, 3, 2, 1 );
+                        AddTriangle( cache, 3, 2, 1 );
                     }
                     
                 }
                 
                 combinedTriangleIndices.Clear();
-                root.triangles.ForEach( localIndex => combinedTriangleIndices.Add( localIndex + verticesAll.Count) );
+                cache.triangles.ForEach( localIndex => combinedTriangleIndices.Add( localIndex + verticesAll.Count) );
                 trianglesAll.AddRange ( combinedTriangleIndices );
 
-                verticesAll.AddRange ( root.vertices );
-                texCoordsAll.AddRange( root.texCoords );
+                verticesAll.AddRange ( cache.vertices );
+                texCoordsAll.AddRange( cache.texCoords );
             }
 
             if ( ivyProfile.ivyLeafSize <= 0.001f || ivyProfile.leafProbability <= 0.001f) {
@@ -378,27 +379,28 @@ namespace Hedera
                     root.useCachedLeafData = false;
                     continue;
                 }
+                var cache = IvyRoot.GetMeshCacheFor(root);
 
                 // use cached mesh data for leaves only if (a) we're supposed to, and (b) if not using vertex colors OR vertex colors seem valid
-                if ( root.useCachedLeafData && !forceGeneration && (!ivyProfile.useVertexColors || root.leafVertices.Count == root.leafVertexColors.Count) ) {
+                if ( root.useCachedLeafData && !forceGeneration && (!ivyProfile.useVertexColors || cache.leafVertices.Count == cache.leafVertexColors.Count) ) {
                     combinedTriangleIndices.Clear();
-                    root.leafTriangles.ForEach( index => combinedTriangleIndices.Add(index + leafVerticesAll.Count));
+                    cache.leafTriangles.ForEach( index => combinedTriangleIndices.Add(index + leafVerticesAll.Count));
                     leafTrianglesAll.AddRange( combinedTriangleIndices );
 
-                    allLeafPoints.AddRange( root.leafPoints );
-                    leafVerticesAll.AddRange ( root.leafVertices );
-                    leafUVsAll.AddRange( root.leafUVs );
+                    allLeafPoints.AddRange( cache.leafPoints );
+                    leafVerticesAll.AddRange ( cache.leafVertices );
+                    leafUVsAll.AddRange( cache.leafUVs );
                     if (ivyProfile.useVertexColors) {
-                        leafColorsAll.AddRange ( root.leafVertexColors );
+                        leafColorsAll.AddRange ( cache.leafVertexColors );
                     }
                     continue;
                 }
                 root.useCachedLeafData = true;
-                root.leafPoints.Clear();
-                root.leafVertices.Clear();
-                root.leafUVs.Clear();
-                root.leafTriangles.Clear();
-                root.leafVertexColors.Clear();
+                cache.leafPoints.Clear();
+                cache.leafVertices.Clear();
+                cache.leafUVs.Clear();
+                cache.leafTriangles.Clear();
+                cache.leafVertexColors.Clear();
 
                 // simple multiplier, just to make it a more dense
                 for (int i = 0; i < 1; ++i)
@@ -454,7 +456,7 @@ namespace Hedera
                         // randomize leaf probability // guarantee a leaf on the first or last node
                         if ( (Random.value + groundedness > 1f - p.leafProbability) || randomSpreadHack == 0f )
                         {
-                            root.leafPoints.Add( node.p );
+                            cache.leafPoints.Add( node.p );
                             allLeafPoints.Add( node.p );
 
                             //center of leaf quad
@@ -468,22 +470,22 @@ namespace Hedera
                             leafSize = Mathf.Max( 0.01f, leafSize);
 
                             Quaternion facing = node.c.sqrMagnitude < 0.001f ? Quaternion.identity : Quaternion.LookRotation( Vector3.Lerp(-node.c, Vector3.up, groundedness * ivyProfile.leafSunlightBonus), Random.onUnitSphere);
-                            AddLeafVertex(root, center, new Vector3(-1f, 1f, 0f), leafSize, facing);
-                            AddLeafVertex(root, center, new Vector3(1f, 1f, 0f), leafSize, facing);
-                            AddLeafVertex(root, center, new Vector3(-1f, -1f, 0f), leafSize, facing);
-                            AddLeafVertex(root, center, new Vector3(1f, -1f, 0f), leafSize, facing);
+                            AddLeafVertex(cache, center, new Vector3(-1f, 1f, 0f), leafSize, facing);
+                            AddLeafVertex(cache, center, new Vector3(1f, 1f, 0f), leafSize, facing);
+                            AddLeafVertex(cache, center, new Vector3(-1f, -1f, 0f), leafSize, facing);
+                            AddLeafVertex(cache, center, new Vector3(1f, -1f, 0f), leafSize, facing);
 
-                            root.leafUVs.Add(new Vector2(1.0f, 1.0f));
-                            root.leafUVs.Add(new Vector2(0.0f, 1.0f));
-                            root.leafUVs.Add(new Vector2(1.0f, 0.0f));
-                            root.leafUVs.Add(new Vector2(0.0f, 0.0f));
+                            cache.leafUVs.Add(new Vector2(1.0f, 1.0f));
+                            cache.leafUVs.Add(new Vector2(0.0f, 1.0f));
+                            cache.leafUVs.Add(new Vector2(1.0f, 0.0f));
+                            cache.leafUVs.Add(new Vector2(0.0f, 0.0f));
 
                             if ( ivyProfile.useVertexColors ) {
                                 var randomColor = ivyProfile.leafVertexColors.Evaluate( Random.value );
-                                root.leafVertexColors.Add( randomColor );
-                                root.leafVertexColors.Add( randomColor );
-                                root.leafVertexColors.Add( randomColor );
-                                root.leafVertexColors.Add( randomColor );
+                                cache.leafVertexColors.Add( randomColor );
+                                cache.leafVertexColors.Add( randomColor );
+                                cache.leafVertexColors.Add( randomColor );
+                                cache.leafVertexColors.Add( randomColor );
                             }
 
                             // calculate normal of the leaf tri, and make it face outwards
@@ -496,19 +498,19 @@ namespace Hedera
                             //    AddLeafTriangle(ivyGraph, 2, 4, 3);
                             //    AddLeafTriangle(ivyGraph, 3, 1, 2);
                             // } else {
-                                    AddLeafTriangle(root, 1, 3, 4);
-                                    AddLeafTriangle(root, 4, 2, 1);
+                                    AddLeafTriangle(cache, 1, 3, 4);
+                                    AddLeafTriangle(cache, 4, 2, 1);
                             // }
                         }
                     }
                     combinedTriangleIndices.Clear();
-                    root.leafTriangles.ForEach( index => combinedTriangleIndices.Add(index + leafVerticesAll.Count));
+                    cache.leafTriangles.ForEach( index => combinedTriangleIndices.Add(index + leafVerticesAll.Count));
                     leafTrianglesAll.AddRange( combinedTriangleIndices );
 
-                    leafVerticesAll.AddRange ( root.leafVertices );
-                    leafUVsAll.AddRange( root.leafUVs );
+                    leafVerticesAll.AddRange ( cache.leafVertices );
+                    leafUVsAll.AddRange( cache.leafUVs );
                     if ( ivyProfile.useVertexColors ) {
-                        leafColorsAll.AddRange( root.leafVertexColors );
+                        leafColorsAll.AddRange( cache.leafVertexColors );
                     }
                 }
             }
@@ -606,7 +608,7 @@ namespace Hedera
             );
         }
 
-        static void AddLeafVertex(IvyRoot ivyRoot, Vector3 center, Vector3 offsetScalar, float ivyLeafSize, Quaternion facing )
+        static void AddLeafVertex(IvyRootMeshCache ivyRoot, Vector3 center, Vector3 offsetScalar, float ivyLeafSize, Quaternion facing )
         {
             var tmpVertex = Vector3.zero;
             tmpVertex = center + ivyLeafSize * offsetScalar;
@@ -615,38 +617,38 @@ namespace Hedera
             ivyRoot.leafVertices.Add(tmpVertex);
         }
 
-        static void AddLeafTriangle(IvyRoot ivyRoot, int offset1, int offset2, int offset3)
+        static void AddLeafTriangle(IvyRootMeshCache ivyRoot, int offset1, int offset2, int offset3)
         {
             ivyRoot.leafTriangles.Add( ivyRoot.leafVertices.Count - offset1);
             ivyRoot.leafTriangles.Add( ivyRoot.leafVertices.Count - offset2);
             ivyRoot.leafTriangles.Add( ivyRoot.leafVertices.Count - offset3);
         }
 
-        static void AddTriangle(IvyRoot ivyRoot, int offset1, int offset2, int offset3)
+        static void AddTriangle(IvyRootMeshCache ivyRoot, int offset1, int offset2, int offset3)
         {
             ivyRoot.triangles.Add( ivyRoot.vertices.Count - offset1);
             ivyRoot.triangles.Add( ivyRoot.vertices.Count - offset2);
             ivyRoot.triangles.Add( ivyRoot.vertices.Count - offset3);
         }
 
-        static float Vector2ToPolar(Vector2 vector)
-        {
-            float phi = (vector.x == 0.0f) ? 0.0f : Mathf.Atan(vector.y / vector.x);
+        // static float Vector2ToPolar(Vector2 vector)
+        // {
+        //     float phi = (vector.x == 0.0f) ? 0.0f : Mathf.Atan(vector.y / vector.x);
 
-            if (vector.x < 0.0f)
-            {
-                phi += Mathf.PI;
-            }
-            else
-            {
-                if (vector.y < 0.0f)
-                {
-                    phi += 2.0f * Mathf.PI;
-                }
-            }
+        //     if (vector.x < 0.0f)
+        //     {
+        //         phi += Mathf.PI;
+        //     }
+        //     else
+        //     {
+        //         if (vector.y < 0.0f)
+        //         {
+        //             phi += 2.0f * Mathf.PI;
+        //         }
+        //     }
 
-            return phi;
-        }
+        //     return phi;
+        // }
 
         static Vector3 RotateAroundAxis(Vector3 vector, Vector3 axisPosition, Vector3 axis, float angle)
         {
