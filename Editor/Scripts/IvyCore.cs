@@ -60,7 +60,8 @@ namespace Hedera
         }
 
 		// TODO:
-		// - change GenerateMesh to use mesh cache directly
+		// - let user move seed position to current pos (arrow icon)
+		// - double check normals in objexport
 		// - add cast shadow / recieve shadow
 		// - test in 5.6.7
 		// - write documentation, make gifs, done!
@@ -204,7 +205,6 @@ namespace Hedera
         public static IvyGraph SeedNewIvyGraph(IvyProfile ivyProfile, Vector3 seedPos, Vector3 primaryGrowDir, Vector3 adhesionVector, Transform root, bool generateMeshPreview=false)
         {
             var graph = new IvyGraph();
-	        graph.ResetMeshData();
 	        graph.roots.Clear();
 			graph.seedPos = seedPos;
 			graph.generateMeshDuringGrowth = generateMeshPreview;

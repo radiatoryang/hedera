@@ -113,24 +113,25 @@ namespace Hedera
 		// renamed variables to be very short, to save on serialization file size
 		// sorry in advance
 
+		/// <summary>node's local position, relative to graph's seedPos</summary>
 	    public Vector3 p;			
 
-	    /** primary grow direction, a weighted sum of the previous directions */
+	    /// <summary>primary grow direction, weighted sum of the previous directions</summary>
 	    public Vector3 g;
 
+		/// <summary>"cling", adhesion vector, points inwards towards clinging surface</summary>
 	    public Vector3 c;
 
-	    /** a smoothed adhesion vector computed and used during the birth phase,
-	       since the ivy leaves are align by the adhesion vector, this smoothed vector
-	       allows for smooth transitions of leaf alignment */
-	    //public Vector3 smoothAdhesionVector;
-
+		/// <summary>local length on this root so far</summary>
 	    public float s;
+
+		/// <summary>cumulative length at this node, across all roots... but note that when painting a stroke, even later branches will start with cumulative length of 0</summary>
 		public float cS;
 
-	    /** length at the last node that was climbing */
+	    /// <summary>float length at the last node that was climbing</summary>
 	    public float fS;
 
+		/// <summary>is node climbing / clinging?</summary>
 	    public bool cl;
 
 		#endif
@@ -279,22 +280,6 @@ namespace Hedera
 		 // ivy roots
 	    [HideInInspector] public List<IvyRoot> roots = new List<IvyRoot>(8);	
 
-		// ivy mesh data
-		// public List<Vector3> vertices = new List<Vector3>();
-	    // public List<Vector2> texCoords = new List<Vector2>();
-	    // public List<int> triangles = new List<int>();
-
-		// public List<Vector3> leafVertices = new List<Vector3>();
-		// public List<Vector2> leafUVs = new List<Vector2>();
-		// public List<int> leafTriangles = new List<int>();
-
-		// public Mesh branchMesh, leafMesh;
-		// { get { 
-		// 	if ( string.IsNullOrEmpty(branchGUID) ) {
-		// 		return null;
-		// 	}
-		// 	var mesh = 
-		// 	}}
 		public long branchMeshID = 0, leafMeshID = 0;
 		public Transform rootBehavior;
 		public GameObject rootGO;
@@ -305,19 +290,6 @@ namespace Hedera
 			branchMeshID = IvyRoot.GetRandomLong();
 			leafMeshID = IvyRoot.GetRandomLong();
 		}
-
-		public void ResetMeshData()
-        {
-	        // vertices.Clear();
-            // texCoords.Clear();
-            // triangles.Clear();
-			// leafVertices.Clear();
-			// leafUVs.Clear();
-			// leafTriangles.Clear();
-			dirtyUV2s = false;
-			// branchMesh = null;
-			// leafMesh = null;
-        }
 
 		#endif
     }
