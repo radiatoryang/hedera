@@ -94,6 +94,8 @@ namespace Hedera
 
             branchMesh.Clear();
             ivyGraph.branchMF.name = ivyGraph.rootGO.name + "_Branches";
+            ivyGraph.branchR.shadowCastingMode = ivyProfile.castShadows;
+            ivyGraph.branchR.receiveShadows = ivyProfile.receiveShadows;
             branchMesh.name = ivyGraph.branchMF.name;
             branchMesh.SetVertices( verticesAll);
             branchMesh.SetUVs(0, texCoordsAll);
@@ -138,8 +140,9 @@ namespace Hedera
 
             leafMesh.Clear();
             ivyGraph.leafMF.name = ivyGraph.rootGO.name + "_Leaves";
+            ivyGraph.leafR.shadowCastingMode = ivyProfile.castShadows;
+            ivyGraph.leafR.receiveShadows = ivyProfile.receiveShadows;
             leafMesh.name = ivyGraph.leafMF.name;
-
             leafMesh.SetVertices(leafVerticesAll);
             leafMesh.SetUVs(0, leafUVsAll);
             if ( ivyProfile.useLightmapping && doUV2s ) {

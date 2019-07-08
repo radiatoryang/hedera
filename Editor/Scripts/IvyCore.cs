@@ -60,9 +60,7 @@ namespace Hedera
         }
 
 		// TODO:
-		// - let user move seed position to current pos (arrow icon)
-		// - what to do if behavior is inactive?
-		// - add cast shadow / recieve shadow
+		// - let user move seed position to new pos (arrow icon)
 		// - test in 5.6.7
 		// - write documentation, make gifs, done!
 	

@@ -21,9 +21,7 @@ namespace Hedera {
                     IvyCore.CreateNewIvyGameObject(profileAsset);
                 }
                 EditorGUILayout.EndVertical();
-                EditorGUILayout.Space();
                 IvyEditor.DrawUILine();
-                EditorGUILayout.Space();
             }
 
             if ( !ivyProfile.showAdvanced ) {
@@ -184,6 +182,12 @@ namespace Hedera {
 
                     content = new GUIContent("Mesh Compress", "How much to compress ivy meshes for a smaller file size in the build. However, higher compression can introduce small flaws or glitches in the mesh.\n(default: Low)");
                     ivyProfile.meshCompress = (IvyProfile.MeshCompression)EditorGUILayout.EnumPopup(content, ivyProfile.meshCompress );
+
+                    content = new GUIContent("Cast Shadows", "The Cast Shadows setting on the ivy mesh renderers.\n(default: On)");
+                    ivyProfile.castShadows = (UnityEngine.Rendering.ShadowCastingMode)EditorGUILayout.EnumPopup(content, ivyProfile.castShadows );
+
+                    content = new GUIContent("Receive Shadow", "The Receive Shadows setting on the ivy mesh renderers.\n(default: True)" );
+                    ivyProfile.receiveShadows = EditorGUILayout.Toggle( content, ivyProfile.receiveShadows );
 
                     content = new GUIContent("Smooth Count", "How many Catmull-Rom spline subdivisions to add to each branch to smooth out the line. For example, a value of 2 doubles your branch vert count.\n- Don't set it too high, and make sure you set Simplify above 0%.\n- value of 1 means no smoothing.\n(default: 2)");
                     ivyProfile.branchSmooth = EditorGUILayout.IntSlider(content, ivyProfile.branchSmooth, 1, 4);

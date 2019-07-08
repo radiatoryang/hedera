@@ -171,7 +171,7 @@ namespace Hedera
             }
             wasPartOfPrefab = IvyCore.IsPartOfPrefab( ivyBehavior.gameObject );
 
-            bool isInARealScene = !string.IsNullOrEmpty(ivyBehavior.gameObject.scene.path);
+            bool isInARealScene = !string.IsNullOrEmpty(ivyBehavior.gameObject.scene.path) && ivyBehavior.gameObject.activeInHierarchy;
             if ( isInARealScene ) {
                 lastDataAsset = IvyCore.GetDataAsset( ivyBehavior.gameObject );
             }
@@ -224,7 +224,7 @@ namespace Hedera
             GUILayout.Label("Ivy Painter", EditorStyles.boldLabel);
 
             if ( !isInARealScene ) {
-                EditorGUILayout.HelpBox("Painting / mesh generation only works in saved scenes. Please save the scene or put it in a saved scene.", MessageType.Error);
+                EditorGUILayout.HelpBox("Painting / mesh generation only works in saved scenes on active game objects.\n- Save the scene?\n- Put this game object in a saved scene?\n- Make sure it is active?", MessageType.Error);
                 GUI.enabled = false;
             }
 

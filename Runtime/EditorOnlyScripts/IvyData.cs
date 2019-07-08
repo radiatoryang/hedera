@@ -46,8 +46,10 @@ namespace Hedera
 		public string namePrefix = "Ivy[{0}]{1}";
 		public bool markMeshAsStatic = true;
 		public bool useLightmapping = false;
-		public enum MeshCompression {None, Low, Medium, High}
+		public enum MeshCompression {None, Low, Medium, High} // ModelImporterMeshCompression is in editor space...
 		public MeshCompression meshCompress;
+		public UnityEngine.Rendering.ShadowCastingMode castShadows = UnityEngine.Rendering.ShadowCastingMode.On;
+		public bool receiveShadows = true;
 
 		public bool useVertexColors = true;
 		public Gradient leafVertexColors = new Gradient();
@@ -89,6 +91,8 @@ namespace Hedera
 			useLightmapping = false;
 			meshCompress = MeshCompression.Low;
 			collisionMask = Physics.DefaultRaycastLayers;
+			castShadows = UnityEngine.Rendering.ShadowCastingMode.On;
+			receiveShadows = true;
 
 			useVertexColors = true;
 			leafVertexColors = new Gradient();
