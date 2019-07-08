@@ -67,9 +67,9 @@ Material:
     - _Mode: 1
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _ShakeBending: 1
+    - _ShakeBending: 0.7
     - _ShakeDisplacement: 68.4
-    - _ShakeTime: 1
+    - _ShakeTime: 2
     - _ShakeWindspeed: 3
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1

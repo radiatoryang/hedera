@@ -13,6 +13,7 @@ namespace Hedera {
 		public IvyProfileAsset profileAsset;
 		public Color debugColor = Color.yellow;
 
+
 		#endif
 	}
 }

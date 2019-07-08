@@ -17,11 +17,6 @@ namespace Hedera {
 		
 		public static string MeshToString(MeshFilter mf, Transform t) 
 		{	
-			Vector3 s 		= t.localScale;
-			Vector3 p 		= t.localPosition;
-			Quaternion r 	= t.localRotation;
-			
-			
 			int numVertices = 0;
 			Mesh m = mf.sharedMesh;
 			if (!m)
@@ -34,14 +29,14 @@ namespace Hedera {
 			
 			foreach(Vector3 vv in m.vertices)
 			{
-				Vector3 v = t.TransformPoint(vv);
+				Vector3 v = vv; //t.TransformPoint(vv);
 				numVertices++;
-				sb.Append(string.Format("v {0} {1} {2}\n",v.x,v.y,v.z));
+				sb.Append(string.Format("v {0} {1} {2}\n", -v.x, v.y, v.z));
 			}
 			sb.Append("\n");
 			foreach(Vector3 nn in m.normals) 
 			{
-				Vector3 v = r * nn;
+				Vector3 v = nn;
 				sb.Append(string.Format("vn {0} {1} {2}\n",v.x,v.y,v.z));
 			}
 			sb.Append("\n");
@@ -58,7 +53,7 @@ namespace Hedera {
 				int[] triangles = m.GetTriangles(material);
 				for (int i=0;i<triangles.Length;i+=3) {
 					sb.Append(string.Format("f {0}/{0}/{0} {1}/{1}/{1} {2}/{2}/{2}\n", 
-											triangles[i]+1+StartIndex, triangles[i+1]+1+StartIndex, triangles[i+2]+1+StartIndex));
+											triangles[i+2]+1+StartIndex, triangles[i+1]+1+StartIndex, triangles[i]+1+StartIndex));
 				}
 			}
 			
@@ -68,10 +63,10 @@ namespace Hedera {
 
 		[MenuItem("Hedera/Export Selected GameObjects to .OBJ...")]
 		public static void DoObjExport () {
-			SaveObjFile( Selection.gameObjects );
+			SaveObjFile( Selection.gameObjects, true );
 		}
 		
-		public static string SaveObjFile(GameObject[] gameObjects, bool recenter = true, bool makeSubmeshes = false)
+		public static string SaveObjFile(GameObject[] gameObjects, bool makeSubmeshes = false)
 		{
 			if (gameObjects == null || gameObjects.Length == 0)
 			{
@@ -98,22 +93,16 @@ namespace Hedera {
 			// process all gameobjects, even the children (see ProcessTransform() )
 			foreach ( var go in gameObjects ) {
 				Transform t = go.transform;
-				Vector3 originalPosition = t.position;
-				if ( recenter ) {
-					t.position = Vector3.zero;
-				}
 				if (!makeSubmeshes)
 				{
 					meshString.Append("g ").Append(t.name).Append("\n");
 				}
 				meshString.Append(ProcessTransform(t, makeSubmeshes));
-
-				t.position = originalPosition;
 			}
 			
 			WriteToFile(meshString.ToString(), fileName);
 			if ( fileName.StartsWith ( Application.dataPath ) ) {
-				AssetDatabase.ImportAsset( "Assets/" + fileName.Substring( Application.dataPath.Length ) );
+				AssetDatabase.ImportAsset( "Assets" + fileName.Substring( Application.dataPath.Length ) );
 			}
 			
 			// end

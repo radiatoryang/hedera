@@ -4,7 +4,6 @@
 Shader "Nature/HederaIvyFoliage" {
  
 	Properties {
-		[Header(Graphical Properties)]
     	_Color ("Main Color", Color) = (1,1,1,1)
 		_VertexColor ("Vertex Color Strength", Range(0,1)) = 0.5
     	_Metallic ("Metallic", Range (0, 1)) = 0

@@ -61,13 +61,13 @@ Material:
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _GlossMapScale: 0.38
-    - _Glossiness: 0.75
+    - _Glossiness: 0.4
     - _GlossyReflections: 1
     - _Metallic: 0
     - _Mode: 1
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _ShakeBending: 0.8
+    - _ShakeBending: 0.62
     - _ShakeDisplacement: 68.4
     - _ShakeTime: 0.68
     - _ShakeWindspeed: 3
@@ -75,7 +75,7 @@ Material:
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
-    - _VertexColor: 0.75
+    - _VertexColor: 0.5
     - _ZWrite: 1
     m_Colors:
     - _Color: {r: 1, g: 0.99344224, b: 0.9103774, a: 1}

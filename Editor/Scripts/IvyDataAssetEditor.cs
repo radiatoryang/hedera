@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using System.Linq;
 
 namespace Hedera {
     [CustomEditor( typeof(IvyDataAsset))]
@@ -9,66 +10,42 @@ namespace Hedera {
     {
         public override void OnInspectorGUI() {
             var data = (IvyDataAsset)target;
-            EditorGUILayout.LabelField("Mesh list " + data.meshList.Count);
+            var allSubassets = AssetDatabase.LoadAllAssetRepresentationsAtPath( AssetDatabase.GetAssetPath(data) );
 
-            GUI.enabled = false;
+            EditorGUILayout.HelpBox("When you paint ivy in a scene, Hedera stores the 3D mesh in this database file.", MessageType.Info);
+            EditorGUILayout.HelpBox("You can manually delete meshes here if you're sure you won't need them anymore. But be careful! Deletion cannot be undone.", MessageType.Warning);
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField( string.Format("{0} mesh references / {1} mesh data saved", data.meshList.Count, allSubassets.Length));
+            var content = new GUIContent("Cleanup Unreferenced Meshes", "Sometimes there's bugs in Hedera, and sometimes it doesn't properly clean up mesh data. Click this button to delete meshes that aren't being used anymore.");
+            if ( GUILayout.Button(content) ) {
+                var allReferencedMeshes = data.meshList.Values.ToList();
+                for ( int i=0; i<allSubassets.Length; i++ ) {
+                    if (!allReferencedMeshes.Contains((Mesh)allSubassets[i])) {
+                        Object.DestroyImmediate(allSubassets[i], true);
+                    }
+                }
+                EditorUtility.SetDirty(data);
+                AssetDatabase.SaveAssets();
+            }
+            EditorGUILayout.Space();
+
             foreach ( var kvp in data.meshList ) {
                 EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField( kvp.Key.ToString() );
+                if ( GUILayout.Button("x", EditorStyles.miniButton, GUILayout.MaxWidth(20)) ) {
+                    if ( kvp.Value != null) {
+                        Object.DestroyImmediate( kvp.Value, true);
+                    }
+                    data.meshList.Remove( kvp.Key );
+                    EditorGUILayout.EndHorizontal();
+                    EditorUtility.SetDirty(data);
+                    AssetDatabase.SaveAssets();
+                    break;
+                }
+                EditorGUILayout.LabelField( kvp.Key.ToString(), EditorStyles.miniBoldLabel, GUILayout.MaxWidth(128) );
                 EditorGUILayout.ObjectField( kvp.Value, typeof(Mesh), false);
                 EditorGUILayout.EndHorizontal();
             }
-            GUI.enabled = true;
         }
 
-        // thanks, networm!
-        // adapted from https://github.com/networm/FindReferencesInProject/blob/master/FindReferencesInProject.cs
-        static void CleanupUnusedMeshes()
-        {
-            // var sw = new System.Diagnostics.Stopwatch();
-            // sw.Start();
-
-            var referenceCache = new Dictionary<string, List<string>>();
-
-            string[] guids = AssetDatabase.FindAssets("");
-            foreach (string guid in guids)
-            {
-                string assetPath = AssetDatabase.GUIDToAssetPath(guid);
-                string[] dependencies = AssetDatabase.GetDependencies(assetPath, false);
-
-                foreach (var dependency in dependencies)
-                {
-                    if (referenceCache.ContainsKey(dependency))
-                    {
-                        if (!referenceCache[dependency].Contains(assetPath))
-                        {
-                            referenceCache[dependency].Add(assetPath);
-                        }
-                    }
-                    else
-                    {
-                        referenceCache[dependency] = new List<string>(){ assetPath };
-                    }
-                }
-            }
-
-            // Debug.Log("Build index takes " + sw.ElapsedMilliseconds + " milliseconds");
-
-            string path = AssetDatabase.GetAssetPath(Selection.activeObject);
-            Debug.Log("Find: " + path, Selection.activeObject);
-            if (referenceCache.ContainsKey(path))
-            {
-                foreach (var reference in referenceCache[path])
-                {
-                    Debug.Log(reference, AssetDatabase.LoadMainAssetAtPath(reference));
-                }
-            }
-            else
-            {
-                Debug.LogWarning("No references");
-            }
-
-            referenceCache.Clear();
-        }
     }
 }

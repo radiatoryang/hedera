@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEditor;
 using UnityEditorInternal;
 using System.Linq;
@@ -15,6 +16,10 @@ namespace Hedera
         Editor ivyProfileEditor;
 
         bool isPlantingModeActive;
+
+        bool wasPartOfPrefab;
+        List<long> lastMeshIDs = new List<long>();
+        IvyDataAsset lastDataAsset;
 
         private Vector3 lastPos, mousePos, mouseNormal, mouseDirection;
         double lastEditorTime, deltaTime;
@@ -98,6 +103,8 @@ namespace Hedera
                         for( int b=0; b<branchCount; b++) {
                             IvyCore.ForceRandomIvyBranch( currentIvyGraph, ivyBehavior.profileAsset.ivyProfile );
                         }
+                    } else {
+                        IvyCore.needToSaveAssets = true;
                     }
                     currentIvyGraph = null;
                 }
@@ -162,12 +169,19 @@ namespace Hedera
             if ( ivyBehavior == null) {
                 ivyBehavior = (IvyBehavior)target;
             }
+            wasPartOfPrefab = IvyCore.IsPartOfPrefab( ivyBehavior.gameObject );
+
+            bool isInARealScene = !string.IsNullOrEmpty(ivyBehavior.gameObject.scene.path);
+            if ( isInARealScene ) {
+                lastDataAsset = IvyCore.GetDataAsset( ivyBehavior.gameObject );
+            }
 
             EditorGUILayout.BeginVertical( EditorStyles.helpBox );
             EditorGUI.BeginChangeCheck();
             ivyBehavior.profileAsset = EditorGUILayout.ObjectField( ivyBehavior.profileAsset, typeof(IvyProfileAsset), false ) as IvyProfileAsset;
             if ( EditorGUI.EndChangeCheck() || (ivyProfileEditor == null && ivyBehavior.profileAsset != null)) {
                 ivyProfileEditor = Editor.CreateEditor( ivyBehavior.profileAsset );
+                ((IvyProfileEditor)ivyProfileEditor).viewedFromMonobehavior = true;
             }
 
             // destroy old editor / cleanup
@@ -209,6 +223,11 @@ namespace Hedera
             DrawUILine();
             GUILayout.Label("Ivy Painter", EditorStyles.boldLabel);
 
+            if ( !isInARealScene ) {
+                EditorGUILayout.HelpBox("Painting / mesh generation only works in saved scenes. Please save the scene or put it in a saved scene.", MessageType.Error);
+                GUI.enabled = false;
+            }
+
             // plant root creation button
             var oldColor = GUI.color;
             GUI.color = isPlantingModeActive ? Color.yellow : Color.Lerp(Color.yellow, oldColor, 0.69f);
@@ -226,7 +245,7 @@ namespace Hedera
             ivyBehavior.generateMeshDuringGrowth = EditorGUILayout.ToggleLeft(content, ivyBehavior.generateMeshDuringGrowth);
 
             int visibleIvy = ivyBehavior.ivyGraphs.Where( ivy => ivy.isVisible ).Count();
-            GUI.enabled = visibleIvy > 0;
+            GUI.enabled = isInARealScene && visibleIvy > 0;
             EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
             content = new GUIContent(" Re-mesh Visible", iconMesh, "Remake meshes for all visible ivy, all at once. Useful when you change your ivy profile settings, and want to see the new changes.");
             if ( GUILayout.Button(content, EditorStyles.miniButtonLeft, GUILayout.MaxWidth(EditorGUIUtility.currentViewWidth * 0.45f), GUILayout.Height(16)) ) {
@@ -259,19 +278,24 @@ namespace Hedera
             }
 
             EditorGUILayout.EndHorizontal();
-            GUI.enabled = true;
+            GUI.enabled = isInARealScene;
 
             if ( ivyBehavior.ivyGraphs.Count == 0) {
                 EditorGUILayout.HelpBox("To paint Ivy, first click [Start Painting Ivy]... then hold down [Left Mouse Button] on a collider in the Scene view, and drag.", MessageType.Info);
             }
 
+            lastMeshIDs.Clear();
+            IvyGraph ivyGraphObjJob = null; // used to pull .OBJ export out of the for() loop
             var oldBGColor = GUI.backgroundColor;
             var pulseColor = Color.Lerp( oldBGColor, Color.yellow, Mathf.PingPong( System.Convert.ToSingle(EditorApplication.timeSinceStartup) * 2f, 1f ) );
             for ( int i=0; i< ivyBehavior.ivyGraphs.Count; i++ ) {
+                GUI.enabled = isInARealScene;
                 var ivy = ivyBehavior.ivyGraphs[i];
                 if ( ivy.isGrowing ) {
                     GUI.backgroundColor = pulseColor;
                 }
+                lastMeshIDs.Add( ivy.leafMeshID );
+                lastMeshIDs.Add( ivy.branchMeshID );
                 EditorGUILayout.BeginHorizontal( EditorStyles.helpBox );
                 GUI.backgroundColor = oldBGColor;
 
@@ -289,7 +313,7 @@ namespace Hedera
                 if ( ivy.rootGO != null ) {
                     GUI.enabled = false;
                     EditorGUILayout.ObjectField( ivy.rootGO, typeof(GameObject), true);
-                    GUI.enabled = true;
+                    GUI.enabled = isInARealScene;
                 } else {
                     string ivyLabel = string.Format(
                         "(no mesh) {0} ivy", 
@@ -316,14 +340,15 @@ namespace Hedera
                     content = new GUIContent( "OBJ", iconExport, "Export ivy mesh to .OBJ file\n(Note: .OBJs only support one UV channel so they cannot have lightmap UVs, Unity must unwrap them upon import)");
                     if (GUILayout.Button(content, EditorStyles.miniButtonMid, GUILayout.Width(24), GUILayout.Height(16)))
                     {
-                        ObjExport.SaveObjFile( new GameObject[] { ivy.rootGO }, false, true );
+                        ivyGraphObjJob = ivy;
                     }
-                    GUI.enabled = true;
+                    GUI.enabled = isInARealScene;
                     content = new GUIContent( iconTrash, "Delete this ivy as well as its mesh objects.");
                     if (GUILayout.Button(content, EditorStyles.miniButtonRight, GUILayout.Width(24), GUILayout.Height(16))) {
                         if ( ivy.rootGO != null) {
                             IvyCore.DestroyObject( ivy.rootGO );
                         }
+                        IvyCore.TryToDestroyMeshes( ivyBehavior, ivy);
                         Undo.RegisterCompleteObjectUndo( ivyBehavior, "Hedera > Delete Ivy" );
                         ivyBehavior.ivyGraphs.Remove(ivy);
                         EditorGUILayout.EndHorizontal();
@@ -347,11 +372,52 @@ namespace Hedera
                 GUI.color = oldColor;
             }
 
+            GUI.enabled = true;
+            EditorGUILayout.Space();
             content = new GUIContent("Debug Color", "When ivy doesn't have a mesh, Hedera will visualize the ivy structure as a debug wireframe with this color in the Scene view.");
             ivyBehavior.debugColor = EditorGUILayout.ColorField( content, ivyBehavior.debugColor );
-            
             EditorGUILayout.Space();
+
+            // was getting GUI errors doing OBJ export inline, so let's do it outside of the for() loop
+            if ( ivyGraphObjJob != null) {
+                var filename = ObjExport.SaveObjFile( new GameObject[] { ivyGraphObjJob.rootGO }, true );
+                if ( isInARealScene
+                    && !string.IsNullOrEmpty(filename) 
+                    && filename.StartsWith(Application.dataPath) 
+                    && AssetDatabase.IsMainAssetAtPathLoaded("Assets" + filename.Substring( Application.dataPath.Length ))
+                ) {
+                    int choice = EditorUtility.DisplayDialogComplex("Hedera: Instantiate .OBJ into scene?", "You just exported ivy into a .OBJ into your project.\nDo you want to replace the ivy with the .OBJ?", "Yes, and delete old ivy", "No, don't instantiate", "Yes, and hide old ivy");
+                   
+                    if ( choice == 0 || choice == 2) {
+                        var prefab = AssetDatabase.LoadAssetAtPath<Object>( "Assets" + filename.Substring( Application.dataPath.Length ) );
+                        var newObj = (GameObject)PrefabUtility.InstantiatePrefab( prefab, ivyBehavior.transform );
+                        Undo.RegisterCreatedObjectUndo( newObj, "Hedera > Instantiate OBJ" );
+                        newObj.transform.position = ivyGraphObjJob.seedPos;
+
+                        var renders = newObj.GetComponentsInChildren<Renderer>();
+                        renders[0].material = ivyProfile.branchMaterial;
+                        if ( renders.Length > 1) { renders[1].material = ivyProfile.leafMaterial; }
+
+                        if ( choice == 0 ) { // remove old ivy
+                            if ( ivyGraphObjJob.rootGO != null) {
+                                IvyCore.DestroyObject( ivyGraphObjJob.rootGO );
+                            }
+                            IvyCore.TryToDestroyMeshes( ivyBehavior, ivyGraphObjJob);
+                            Undo.RegisterCompleteObjectUndo( ivyBehavior, "Hedera > Instantiate OBJ" );
+                            ivyBehavior.ivyGraphs.Remove(ivyGraphObjJob);
+                        } else { // just turn off old ivy
+                            Undo.RegisterCompleteObjectUndo( ivyBehavior, "Hedera > Instantiate OBJ" );
+                            ivyGraphObjJob.isVisible = false;
+                            if ( ivyGraphObjJob.rootGO != null) {
+                                ivyGraphObjJob.rootGO.SetActive( false );
+                            }
+                        }
+                    }
+                }
+            }
+
         }
+
         public static void DrawUILine(Color color = default(Color), int thickness = 1, int padding = 4)
         {
             if ( color == default(Color)) {
@@ -366,6 +432,28 @@ namespace Hedera
             // EditorGUILayout.LabelField("", GUILayout.Height(thickness+padding));
             EditorGUI.DrawRect(r, color);
         }
+
+        // does this actually work? I feel like it doesn't
+        public void OnDestroy()
+        {
+            if ( Application.isEditor )
+            {
+                if( (IvyBehavior)target == null) {
+                    // clean up meshes as well
+                    if ( wasPartOfPrefab && !IvyCore.ConfirmDestroyMeshes() ) {
+                        return;
+                    }
+
+                    if ( lastDataAsset != null ) {
+                        foreach ( var meshID in lastMeshIDs ) {
+                            IvyCore.TryDestroyMesh( meshID, lastDataAsset );
+                        }
+                    }
+
+                }
+            }
+        }
+
 
     }
 }

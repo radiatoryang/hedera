@@ -60,20 +60,12 @@ namespace Hedera
         }
 
 		// TODO:
-		// x add "show advanced"
-		// - add "leaf sun tilt"
-		// - save mesh in external asset?
-		// x move profile editor to profile inspector
-		// - try to find default materials for new ivy profiles (or add "fix" button)
-		// - display warning about editing in 2018.3 prefab space
-
-		// - let user replace mesh with OBJ (one-time operation)
-		// x vertex colors
-		// - let user specify branch sides (2-6)
-		// - test: merging should use mesh cache
-
-		// - test build out
-
+		// - change GenerateMesh to use mesh cache directly
+		// - add cast shadow / recieve shadow
+		// - write documentation, make gifs, done!
+	
+		public static bool needToSaveAssets = false;
+		static bool grewThisFrame = false;
         void OnEditorUpdate()
         {
             if (EditorApplication.timeSinceStartup > lastRefreshTime + refreshInterval)
@@ -81,6 +73,8 @@ namespace Hedera
                 lastRefreshTime = EditorApplication.timeSinceStartup;
 				CacheTerrainColliderStuff();
 				adhesionMeshCache.Clear();
+				
+				grewThisFrame = false;
                 foreach (var ivyB in ivyBehaviors) {
 					if ( ivyB == null || ivyB.profileAsset == null) {
 						continue;
@@ -91,28 +85,49 @@ namespace Hedera
 							if ( ivy.generateMeshDuringGrowth ) {
 								IvyMesh.GenerateMesh(ivy, ivyB.profileAsset.ivyProfile);
 							}
+							grewThisFrame = true;
+							needToSaveAssets = true;
 						}
 						if ( !ivy.isGrowing && ivy.generateMeshDuringGrowth && ivyB.profileAsset.ivyProfile.useLightmapping && ivy.dirtyUV2s ) {
 							IvyMesh.GenerateMesh( ivy, ivyB.profileAsset.ivyProfile, true);
+							grewThisFrame = true;
+							needToSaveAssets = true;
 						}
 					}
 				}
+
+				// wait for a lull, then save changes to assets
+				if ( !grewThisFrame && needToSaveAssets ) {
+					needToSaveAssets = false;
+					AssetDatabase.SaveAssets();
+				}
+				
             }
 			
         }
 
-		static void CacheTerrainColliderStuff () {
-			colliderToTerrain.Clear();
-			foreach ( var terrain in Terrain.activeTerrains ) {
-				colliderToTerrain.Add( terrain.GetComponent<TerrainCollider>(), terrain);
-			}
 
-			for ( int i=0; i<TERRAIN_SEARCH_COUNT; i++) {
-				terrainSearchDisc[i] = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f) * Vector3.forward * Random.value;
-			}
+		[MenuItem("GameObject/Create New Ivy (Hedera)", false, 11)]
+		public static void NewIvyFromMenu() {
+			CreateNewIvyGameObject();
 		}
 
-        [MenuItem("Hedera/Create New Ivy Generator...")]
+		[MenuItem("Hedera/Create/Create New Ivy GameObject")]
+		public static void NewIvyFromHederaMenu() {
+			CreateNewIvyGameObject();
+		}
+
+		public static void CreateNewIvyGameObject(IvyProfileAsset asset = null)
+		{
+            var newIvy = new GameObject("Ivy Group");
+            var newIvyScript = newIvy.AddComponent<IvyBehavior>();
+			if ( asset != null) {
+				newIvyScript.profileAsset = asset;
+			}
+			Selection.activeGameObject = newIvy;
+		}
+
+        [MenuItem("Hedera/Create/Create New Ivy Profile Asset...")]
         public static void NewAssetFromHederaMenu()
         {
             CreateNewAsset("");
@@ -128,6 +143,9 @@ namespace Hedera
             AssetDatabase.CreateAsset(asset, path);
             AssetDatabase.SaveAssets();
 
+			asset.ivyProfile.branchMaterial = IvyCore.TryToFindDefaultBranchMaterial();
+            asset.ivyProfile.leafMaterial = IvyCore.TryToFindDefaultLeafMaterial();
+
             EditorUtility.FocusProjectWindow();
 
             Selection.activeObject = asset;
@@ -135,7 +153,7 @@ namespace Hedera
 		}
 
 		public static IvyDataAsset GetDataAsset(GameObject forObject) {
-			var scene= forObject.scene;
+			var scene = forObject.scene;
 			var mainFolder = Path.GetDirectoryName( scene.path );
 			string path = mainFolder + "/" + scene.name + "/HederaData.asset";
 
@@ -158,7 +176,7 @@ namespace Hedera
 			return asset;
 		}
 
-		[MenuItem("Hedera/Force-Stop All Ivy Growing")]
+		[MenuItem("Hedera/Stop All Ivy Growing")]
         public static void ForceStopGrowing()
         {
             foreach ( var gen in ivyBehaviors ) {
@@ -167,6 +185,20 @@ namespace Hedera
 				}
 			}
         }
+
+		[MenuItem("Hedera/Open HederaExampleScene.unity")]
+		public static void OpenExampleScene () {
+			var scenes = AssetDatabase.FindAssets("HederaExampleScene t:Scene");
+			if ( scenes != null && scenes.Length > 0) {
+				scenes[0] = AssetDatabase.GUIDToAssetPath( scenes[0] );
+			} else {
+				Debug.LogWarning( "Hedera > Open HederaExampleScene couldn't find the example scene, which is usually in Assets/Hedera/Example/HederaExampleScene.unity ... you may have renamed the scene file or deleted it.");
+				return;
+			}
+			if ( UnityEditor.SceneManagement.EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo() ) {
+				UnityEditor.SceneManagement.EditorSceneManager.OpenScene( scenes[0], UnityEditor.SceneManagement.OpenSceneMode.Single);
+			}
+		}
 
         public static IvyGraph SeedNewIvyGraph(IvyProfile ivyProfile, Vector3 seedPos, Vector3 primaryGrowDir, Vector3 adhesionVector, Transform root, bool generateMeshPreview=false)
         {
@@ -393,6 +425,17 @@ namespace Hedera
 			return true;
 		}
 
+		static void CacheTerrainColliderStuff () {
+			colliderToTerrain.Clear();
+			foreach ( var terrain in Terrain.activeTerrains ) {
+				colliderToTerrain.Add( terrain.GetComponent<TerrainCollider>(), terrain);
+			}
+
+			for ( int i=0; i<TERRAIN_SEARCH_COUNT; i++) {
+				terrainSearchDisc[i] = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f) * Vector3.forward * Random.value;
+			}
+		}
+
 	    /** compute the adhesion of scene objects at a point pos*/
 		static Dictionary<Mesh, Vector3[]> adhesionMeshCache = new Dictionary<Mesh, Vector3[]>();
 	    static Vector3 ComputeAdhesion(Vector3 pos, IvyProfile ivyProfile)
@@ -546,6 +589,7 @@ namespace Hedera
 				if ( graph.rootGO != null) {
 					DestroyObject( graph.rootGO );
 				}
+				TryToDestroyMeshes( ivyBehavior, graph );
 
 				ivyBehavior.ivyGraphs.Remove(graph);
 				i--;
@@ -559,7 +603,108 @@ namespace Hedera
 			return mainGraph;
 		}
 
-		// this is all needed for Unity 2018.3 or later, due to the new prefab workflow... if earlier, then does nothing
+		public static void DestroyObject (GameObject go, string undoMessage = "Hedera > Destroy Ivy") {
+			Undo.SetCurrentGroupName( undoMessage );
+			#if UNITY_2018_3_OR_NEWER
+			if ( PrefabUtility.IsPartOfPrefabInstance(go.transform) ) {
+				// unfortunately, delete-as-override support won't be added until Unity 2020 (if ever)
+
+				// THIS HACK WORKS GREAT AS OF UNITY 2019.1.8
+				// from https://forum.unity.com/threads/programmatically-destroy-gameobjects-in-prefabs.591907/#post-3953059
+				// if a part of a prefab instance then get the instance handle
+				Object prefabInstance = PrefabUtility.GetPrefabInstanceHandle(go.transform);
+				Object.DestroyImmediate(prefabInstance);
+				Object.DestroyImmediate(go);
+
+				// below is the official Unity sanctioned way of deleting objects on prefab instances
+				// but there's a major problem with it: unpacking the instance loses the prefab connection,
+				// when it's ideal to maintain a "disconnected" link that we can always apply back to the prefab?
+				// so... until Unity breaks the hack above, we won't use this official-but-worse way
+
+				// var instanceRoot = PrefabUtility.GetOutermostPrefabInstanceRoot(go);
+				// PrefabUtility.UnpackPrefabInstance( instanceRoot, PrefabUnpackMode.OutermostRoot, InteractionMode.AutomatedAction);
+				return;
+			} else 
+			#endif
+			{
+			Undo.DestroyObjectImmediate( go );
+			}
+		}
+
+		public static void TryToDestroyMeshes(IvyBehavior ivyBehavior, IvyGraph ivyGraph, bool suppressConfirm=false) {
+			var go = ivyGraph.rootGO != null ? ivyGraph.rootGO : ivyBehavior.gameObject;
+			// if it's a prefab or prefab instance, then confirm before destroying
+			if ( IsPartOfPrefab(go) && !suppressConfirm ) {
+				if ( !ConfirmDestroyMeshes(go.name) ) {
+					return;
+				}
+			}
+
+			// if it's not part of a prefab, then we can safely destroy the mesh
+			var asset = GetDataAsset(go);
+			TryDestroyMesh( ivyGraph.branchMeshID, asset);
+			TryDestroyMesh( ivyGraph.leafMeshID, asset);
+		}
+
+		public static bool TryDestroyMesh( long meshID, IvyDataAsset asset ) {
+			if ( asset.meshList.ContainsKey(meshID) && asset.meshList[meshID] != null ) {
+				Undo.DestroyObjectImmediate( asset.meshList[meshID] );
+				asset.meshList.Remove(meshID);
+				return true;
+			}
+			return false;
+		}
+
+		static bool alwaysKeep = false;
+		public static bool ConfirmDestroyMeshes(string ivyName = "prefab") {
+			if ( alwaysKeep ) { return false; }
+			int response = EditorUtility.DisplayDialogComplex("Hedera: Delete ivy meshes in " + ivyName + "?", "You deleted ivy on this prefab instance, but other instances might rely on the mesh data.\n- If you know this ivy is unused, click Delete.\n- If you're not sure, click Keep.", "Delete Meshes", "Keep Meshes", "Always Keep (and Don't Ask Again For A While)");
+			if ( response == 0) {
+				return true;
+			} else {
+				if ( response == 2) {
+					alwaysKeep = true;
+				}
+				return false;
+			}
+		}
+
+		public static bool IsPartOfPrefab(GameObject go) {
+			#if UNITY_2018_3_OR_NEWER // uses new prefab workflow
+				// check to see if this is an added game object override; if so, then it's not actually part of the prefab
+				if ( PrefabUtility.GetPrefabInstanceStatus(go) != PrefabInstanceStatus.NotAPrefab ) {
+					if ( PrefabUtility.GetCorrespondingObjectFromSource<GameObject>(go) == null || PrefabUtility.IsAddedGameObjectOverride(go) ) {
+						return false;
+					} else {
+						return true;
+					}
+				} else {
+					return false;
+				}
+			#else // uses old prefab workflow
+				return PrefabUtility.GetPrefabType(go) =! PrefabType.None;
+			#endif
+		}
+
+		static T FindAsset<T>(string searchFilter) where T : UnityEngine.Object {
+			string[] guids = AssetDatabase.FindAssets(searchFilter, new[] {"Assets"});
+
+			foreach (string guid in guids)
+			{
+				return (T)AssetDatabase.LoadAssetAtPath(AssetDatabase.GUIDToAssetPath(guid), typeof(T));
+			}
+			return null;
+		}
+
+		public static Material TryToFindDefaultBranchMaterial() {
+			return FindAsset<Material>("IvyBranchWood t:Material");
+		}
+		public static Material TryToFindDefaultLeafMaterial() {
+			return FindAsset<Material>("IvyLeafMature t:Material");
+		}
+
+
+		// this might be needed for Unity 2018.3 or later, due to the new prefab workflow... if earlier, then does nothing
 		// static string rootPrefabPath = "";
 		// static GameObject rootPrefabObject;
 		// public static bool isEditingNewPrefab { get { return rootPrefabObject != null;} }
@@ -594,22 +739,6 @@ namespace Hedera
 		// 	rootPrefabObject = null;
 		// 	return ivyBehavior;
 		// }
-
-		public static void DestroyObject (GameObject go, string undoMessage = "Hedera > Destroy Ivy") {
-			Undo.SetCurrentGroupName( undoMessage );
-			// from https://forum.unity.com/threads/programmatically-destroy-gameobjects-in-prefabs.591907/#post-3953059
-			#if UNITY_2018_3_OR_NEWER
-			if ( PrefabUtility.IsPartOfPrefabInstance(go.transform) ) {
-				// if a part of a prefab instance then get the instance handle
-				Object prefabInstance = PrefabUtility.GetPrefabInstanceHandle(go.transform);
-				// destroy the handle
-				Object.DestroyImmediate(prefabInstance);
-				Object.DestroyImmediate(go);
-				return;
-			}
-			#endif
-			Undo.DestroyObjectImmediate( go );
-		}
 
 		// public static void CommitDestructiveEdit () {
 		// 	#if UNITY_2018_3_OR_NEWER

@@ -99,7 +99,7 @@ namespace Hedera
 			}, 
 			new GradientAlphaKey[] { new GradientAlphaKey(1f, 0f)} );
 
-			//branchMaterial = null;
+			// branchMaterial = null;
 			//leafMaterial = null;
         }
 

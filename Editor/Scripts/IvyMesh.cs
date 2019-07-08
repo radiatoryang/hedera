@@ -84,25 +84,13 @@ namespace Hedera
             //     Debug.DrawRay( vert + ivyGraph.seedPos, Vector3.up, Color.cyan, 1f, false );
             // }
 
- 
-            if ( ivyGraph.branchMeshID == 0 || !myAsset.meshList.ContainsKey( ivyGraph.branchMeshID )) {
-                var newMesh = new Mesh();
-                MeshUtility.SetMeshCompression (newMesh, ModelImporterMeshCompression.Medium);
-                AssetDatabase.AddObjectToAsset(newMesh, AssetDatabase.GetAssetPath(myAsset));
-                ivyGraph.branchMeshID = IvyRoot.GetRandomLong();
-                myAsset.meshList.Add( ivyGraph.branchMeshID, newMesh);
-            }
+            CheckMeshDataAsset( ref ivyGraph.branchMeshID, myAsset, ivyProfile.meshCompress);
             branchMesh = myAsset.meshList[ivyGraph.branchMeshID];
          
             if ( ivyGraph.branchMF == null || ivyGraph.branchR == null) {
                 CreateIvyMeshObject(ivyGraph, ivyProfile, branchMesh, false);
             }
-            SetStaticEditorFlag( ivyGraph.branchMF.gameObject, StaticEditorFlags.BatchingStatic, ivyProfile.markMeshAsStatic );
-            SetStaticEditorFlag( ivyGraph.branchMF.gameObject, StaticEditorFlags.LightmapStatic, ivyProfile.useLightmapping );
-            var branchTrans = ivyGraph.branchMF.transform;
-            branchTrans.localPosition = Vector3.zero;
-            branchTrans.localRotation = Quaternion.identity;
-            branchTrans.localScale = Vector3.one;
+            RefreshMeshObject( ivyGraph.branchMF, ivyProfile );
 
             branchMesh.Clear();
             ivyGraph.branchMF.name = ivyGraph.rootGO.name + "_Branches";
@@ -116,6 +104,9 @@ namespace Hedera
             branchMesh.RecalculateBounds();
             branchMesh.RecalculateNormals();
             branchMesh.RecalculateTangents();
+            #if UNITY_2017_1_OR_NEWER
+            MeshUtility.Optimize( branchMesh );
+            #endif
             ivyGraph.branchMF.sharedMesh = branchMesh;
             ivyGraph.branchR.sharedMaterial = ivyProfile.branchMaterial != null ? ivyProfile.branchMaterial : AssetDatabase.GetBuiltinExtraResource<Material>("Default-Diffuse.mat");
             
@@ -129,7 +120,7 @@ namespace Hedera
                     Object.DestroyImmediate( ivyGraph.leafMF.gameObject );
                 }
                 if ( leafMesh != null) {
-                    Object.DestroyImmediate( leafMesh );
+                    Object.DestroyImmediate( leafMesh, true );
                 }
                 ivyGraph.leafMeshID = 0;
                 EditorUtility.SetDirty( myAsset );
@@ -137,24 +128,13 @@ namespace Hedera
                 return;
             }
 
-            if ( ivyGraph.leafMeshID == 0 || !myAsset.meshList.ContainsKey( ivyGraph.leafMeshID )) {
-                var newMesh = new Mesh();
-                MeshUtility.SetMeshCompression (newMesh, ModelImporterMeshCompression.Medium);
-                AssetDatabase.AddObjectToAsset(newMesh, AssetDatabase.GetAssetPath(myAsset));
-                ivyGraph.leafMeshID = IvyRoot.GetRandomLong();
-                myAsset.meshList.Add( ivyGraph.leafMeshID, newMesh);
-            }
+            CheckMeshDataAsset(ref ivyGraph.leafMeshID, myAsset, ivyProfile.meshCompress);
             leafMesh = myAsset.meshList[ivyGraph.leafMeshID];
 
             if ( ivyGraph.leafMF == null || ivyGraph.leafR == null) {
                 CreateIvyMeshObject(ivyGraph, ivyProfile, leafMesh, true);
             } 
-            SetStaticEditorFlag( ivyGraph.leafMF.gameObject, StaticEditorFlags.BatchingStatic, ivyProfile.markMeshAsStatic );
-            SetStaticEditorFlag( ivyGraph.leafMF.gameObject, StaticEditorFlags.LightmapStatic, ivyProfile.useLightmapping );
-            var leafTrans = ivyGraph.leafMF.transform;
-            leafTrans.localPosition = Vector3.zero;
-            leafTrans.localRotation = Quaternion.identity;
-            leafTrans.localScale = Vector3.one;
+            RefreshMeshObject( ivyGraph.leafMF, ivyProfile);
 
             leafMesh.Clear();
             ivyGraph.leafMF.name = ivyGraph.rootGO.name + "_Leaves";
@@ -172,12 +152,41 @@ namespace Hedera
             leafMesh.RecalculateBounds();
             leafMesh.RecalculateNormals();
             leafMesh.RecalculateTangents();
+            #if UNITY_2017_1_OR_NEWER
+            MeshUtility.Optimize(leafMesh);
+            #endif
             ivyGraph.leafMF.sharedMesh = leafMesh;
             ivyGraph.leafR.sharedMaterial = ivyProfile.leafMaterial != null ? ivyProfile.leafMaterial : AssetDatabase.GetBuiltinExtraResource<Material>("Default-Diffuse.mat");
 
             // EditorUtility.SetDirty( myAsset );
             // AssetDatabase.SaveAssets();
             // AssetDatabase.ImportAsset( AssetDatabase.GetAssetPath(myAsset) );
+        }
+
+        static void CheckMeshDataAsset(ref long meshID, IvyDataAsset myAsset, IvyProfile.MeshCompression meshCompress) {
+            if ( meshID == 0 ) {
+                meshID = IvyRoot.GetRandomLong();
+            }
+            if ( !myAsset.meshList.ContainsKey( meshID ) || myAsset.meshList[meshID]==null ) {
+                var newMesh = new Mesh();
+                MeshUtility.SetMeshCompression(newMesh, (ModelImporterMeshCompression)meshCompress );
+                AssetDatabase.AddObjectToAsset(newMesh, AssetDatabase.GetAssetPath(myAsset));
+
+                if ( myAsset.meshList.ContainsKey(meshID) && myAsset.meshList[meshID]==null) {
+                    myAsset.meshList[meshID] = newMesh;
+                } else {
+                    myAsset.meshList.Add(meshID, newMesh);
+                }
+            }
+        }
+
+        static void RefreshMeshObject(MeshFilter mf, IvyProfile ivyProfile) {
+            SetStaticEditorFlag( mf.gameObject, StaticEditorFlags.BatchingStatic, ivyProfile.markMeshAsStatic );
+            SetStaticEditorFlag( mf.gameObject, StaticEditorFlags.LightmapStatic, ivyProfile.useLightmapping );
+            var branchTrans = mf.transform;
+            branchTrans.localPosition = Vector3.zero;
+            branchTrans.localRotation = Quaternion.identity;
+            branchTrans.localScale = Vector3.one;
         }
 
         static List<Vector3> allLeafPoints = new List<Vector3>(1024);

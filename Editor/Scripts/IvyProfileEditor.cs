@@ -8,12 +8,27 @@ namespace Hedera {
     [CustomEditor(typeof(IvyProfileAsset))]
     public class IvyProfileEditor : Editor
     {
+        public bool viewedFromMonobehavior = false;
         public override void OnInspectorGUI () {
             var profileAsset = (IvyProfileAsset)target;
             var ivyProfile = profileAsset.ivyProfile;
 
             var content = new GUIContent();
-            EditorGUILayout.HelpBox("Hover over each label to learn more.\nIf you mess up, click Reset To Defaults.", MessageType.Info);
+            if( !viewedFromMonobehavior ) {
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.HelpBox("This is an Ivy Profile, it controls how your ivy will look. But to paint anything, you must use an Ivy Behavior on a game object.", MessageType.Info);
+                if ( GUILayout.Button("Create new Ivy Game Object in Scene")) {
+                    IvyCore.CreateNewIvyGameObject(profileAsset);
+                }
+                EditorGUILayout.EndVertical();
+                EditorGUILayout.Space();
+                IvyEditor.DrawUILine();
+                EditorGUILayout.Space();
+            }
+
+            if ( !ivyProfile.showAdvanced ) {
+                EditorGUILayout.HelpBox("Hover over each label to learn more.\nIf you mess up, click Reset To Defaults.", MessageType.Info);
+            }
 
             content = new GUIContent( "Reset to Defaults", "This will set almost all ivy settings back to their default settings, which has been tested to work OK.");
             if ( GUILayout.Button(content, EditorStyles.miniButton) ) {
@@ -21,6 +36,8 @@ namespace Hedera {
                 {
                     Undo.RegisterCompleteObjectUndo(profileAsset, "Hedera > Reset Settings" );
                     ivyProfile.ResetSettings();
+                    ivyProfile.branchMaterial = IvyCore.TryToFindDefaultBranchMaterial();
+                    ivyProfile.leafMaterial = IvyCore.TryToFindDefaultLeafMaterial();
                     EditorUtility.SetDirty( profileAsset );
                 }
             }
@@ -165,6 +182,9 @@ namespace Hedera {
                     content = new GUIContent("Lighting Static", "Set ivy meshes to use lightmapping AND generate lightmap UV2s for the ivy.\n- Make sure your lightmap luxel resolution is high enough, or else it'll probably look very spotty.\n- Also make sure your lightmap atlas size is big enough, or else the lightmapped ivy won't batch.\n- If disabled, meshes won't have UV2s, which saves memory.\n(default: false)");
                     ivyProfile.useLightmapping = EditorGUILayout.Toggle( content, ivyProfile.useLightmapping );
 
+                    content = new GUIContent("Mesh Compress", "How much to compress ivy meshes for a smaller file size in the build. However, higher compression can introduce small flaws or glitches in the mesh.\n(default: Low)");
+                    ivyProfile.meshCompress = (IvyProfile.MeshCompression)EditorGUILayout.EnumPopup(content, ivyProfile.meshCompress );
+
                     content = new GUIContent("Smooth Count", "How many Catmull-Rom spline subdivisions to add to each branch to smooth out the line. For example, a value of 2 doubles your branch vert count.\n- Don't set it too high, and make sure you set Simplify above 0%.\n- value of 1 means no smoothing.\n(default: 2)");
                     ivyProfile.branchSmooth = EditorGUILayout.IntSlider(content, ivyProfile.branchSmooth, 1, 4);
 
@@ -181,6 +201,8 @@ namespace Hedera {
                     EditorGUILayout.Space();
                 }
             }
+
+            EditorGUI.indentLevel--;
 
             if ( EditorGUI.EndChangeCheck() ) {
                 Undo.RegisterCompleteObjectUndo(profileAsset, "Hedera > Edit Ivy Settings" );

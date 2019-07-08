@@ -36,12 +36,14 @@ MonoBehaviour:
     adhesionWeight: 1
     branchingProbability: 0.25
     leafProbability: 1.25
-    leafSunlightBonus: 0.5
-    branchOptimize: 0.29999998
+    leafSunlightBonus: 0.049999997
+    branchOptimize: 0.5
     branchSmooth: 2
+    branchTaper: 0.75
     namePrefix: Ivy[{0}]{1}
     markMeshAsStatic: 1
     useLightmapping: 0
+    meshCompress: 1
     useVertexColors: 1
     leafVertexColors:
       serializedVersion: 2

@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a1020a4c7d209d44692bbe0a13ac8cd8, type: 3}
-  m_Name: IvyProfile_Realistic
+  m_Name: IvyProfile_RealisticAutumn
   m_EditorClassIdentifier: 
   ivyProfile:
     showAdvanced: 0
@@ -21,9 +21,9 @@ MonoBehaviour:
       serializedVersion: 2
       m_Bits: 7
     branchMaterial: {fileID: 2100000, guid: 123d399f8e63bd14583ff91cb9c53f8a, type: 2}
-    leafMaterial: {fileID: 2100000, guid: f266a98e14b6a8e42a5d186732b9d88c, type: 2}
+    leafMaterial: {fileID: 2100000, guid: c6f9e82026f1a44849d44aa83c5efd30, type: 2}
     ivyStepDistance: 0.1
-    ivyLeafSize: 0.15
+    ivyLeafSize: 0.1
     ivyBranchSize: 0.1
     maxFloatLength: 1
     maxAdhesionDistance: 1
@@ -31,32 +31,33 @@ MonoBehaviour:
     maxLength: 3
     maxBranchesTotal: 32
     primaryWeight: 0.5
-    randomWeight: 1.25
+    randomWeight: 1
     gravityWeight: 3
     adhesionWeight: 1
-    branchingProbability: 0.5
-    leafProbability: 0.62
+    branchingProbability: 0.35
+    leafProbability: 0.25
     leafSunlightBonus: 1
-    branchOptimize: 0
-    branchSmooth: 1
+    branchOptimize: 0.39999998
+    branchSmooth: 2
     branchTaper: 1
     namePrefix: Ivy[{0}]{1}
     markMeshAsStatic: 1
     useLightmapping: 0
+    meshCompress: 1
     useVertexColors: 1
     leafVertexColors:
       serializedVersion: 2
-      key0: {r: 1, g: 1, b: 1, a: 1}
-      key1: {r: 0.17808829, g: 0.5471698, b: 0.45828858, a: 1}
-      key2: {r: 0.2748754, g: 0.6698113, b: 0.2748754, a: 0}
-      key3: {r: 1, g: 0.92156863, b: 0.015686275, a: 0}
+      key0: {r: 0.7830189, g: 0.121885024, b: 0.121885024, a: 1}
+      key1: {r: 0.8962264, g: 0.76166654, b: 0.10568706, a: 1}
+      key2: {r: 0.6878585, g: 0.8207547, b: 0.41424885, a: 0}
+      key3: {r: 0.6509434, g: 0.43640003, b: 0.08904416, a: 0}
       key4: {r: 0, g: 0, b: 0, a: 0}
       key5: {r: 0, g: 0, b: 0, a: 0}
       key6: {r: 0, g: 0, b: 0, a: 0}
       key7: {r: 0, g: 0, b: 0, a: 0}
-      ctime0: 0
-      ctime1: 19661
-      ctime2: 40285
+      ctime0: 386
+      ctime1: 20046
+      ctime2: 39899
       ctime3: 65535
       ctime4: 0
       ctime5: 0
