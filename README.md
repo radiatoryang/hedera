@@ -1,9 +1,10 @@
 # hedera
 <img width=50% align=right src=https://user-images.githubusercontent.com/2285943/60858537-c1559800-a1dc-11e9-81c6-495bf4ea13f6.gif> 
 
-#### paint 3D ivy in the Unity Editor, watch procedurally generated meshes simulate growth and clinging in real-time*
+#### paint 3D ivy in the Unity Editor, simulate growth and clinging in real-time*
 <code>* real-time mesh generation is CPU / GPU intensive, slower on older computers or integrated GPUs</code>
 
+- procedurally generate foliage meshes for your games and 3D worlds
 - includes textures, shaders, presets for painting realistic ivy, cartoon ivy, or even ropes and cables
 - vert counts and polycounts usually < 5k unless you paint a lot of ivy; [download sample .OBJ here]
     - merge multiple ivy meshes to save draw calls, or just let static batching work
