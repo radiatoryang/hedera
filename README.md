@@ -34,3 +34,7 @@
 - uses [painting code](https://github.com/marmitoTH/Unity-Prefab-Placement-Editor) and [foliage shader code](https://github.com/marmitoTH/unity-enhanced-foliage) by Lucas Rodrigues
 - uses [.OBJ exporter code](https://wiki.unity3d.com/index.php/ExportOBJ) by DaveA, KeliHlodversson, tgraupmann, drobe
 - uses [Douglas-Peucker line simplifier code](https://github.com/rohaanhamid/simplify-csharp) by Rohaan Hamid
+
+### donations
+- donate to the original Ivy Generator author (Thomas Luft): http://www.loim.de/ivy_generator_donation/
+- to donate to me, just go to my itch.io page and buy / tip whatever you want: https://radiatoryang.itch.io/
