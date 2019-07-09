@@ -2,7 +2,7 @@
 <img width=320px align=right src=https://user-images.githubusercontent.com/2285943/60907136-d0713000-a246-11e9-97a2-de9cb8ffa8cd.gif> 
 
 #### paint 3D ivy in the Unity Editor, simulate growth and clinging in real-time*
-<code>* real-time mesh generation might be very slow on older computers / integrated GPUs</code>
+<code>* real-time mesh gen might be slow on old computers / GPUs</code>
 
 - cover your 3D world in ivy
 - includes textures, shaders, and 5 presets for painting realistic ivy, cartoon ivy, or even ropes and cables
