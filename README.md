@@ -10,7 +10,7 @@
     - merge multiple ivy meshes to save draw calls, or just let static batching work
     - randomize vertex colors for subtle color variation, auto-unwrap ivy UV2s for lightmapping
     - store ivy meshes directly in your project, or export to .OBJ
-- 25+ different ivy settings to tweak... guide and user documentation is on the [Wiki](https://github.com/radiatoryang/hedera/wiki)
+- 25+ different ivy settings to tweak for your own presets! guide and user documentation is on the [Wiki](https://github.com/radiatoryang/hedera/wiki)
 - tested on Unity 2019.1.8 (but probably works ok on older Unity versions)
 
 ### usage
