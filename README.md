@@ -1,7 +1,7 @@
 # hedera
 <img width=320px align=right src=https://user-images.githubusercontent.com/2285943/60907136-d0713000-a246-11e9-97a2-de9cb8ffa8cd.gif> 
 
-#### paint 3D ivy in the Unity Editor, simulate growth and clinging in real-time*
+#### paint 3D ivy in the Unity Editor, simulate growth in real-time*
 <code>* real-time mesh gen might be slow on old computers / GPUs</code>
 
 - cover your 3D world in ivy
