@@ -6,16 +6,16 @@
 
 - procedurally generate foliage meshes for your games and 3D worlds
 - includes textures, shaders, presets for painting realistic ivy, cartoon ivy, or even ropes and cables
-- vert counts and polycounts usually < 5k unless you paint a lot of ivy; [download sample .OBJ here]
+- vert counts and polycounts usually < 5k unless you paint a lot of ivy; [download sample ivy .OBJ here (right-click and Save As)](https://raw.githubusercontent.com/radiatoryang/hedera/master/Example/ExampleIvyMeshExport.obj)
     - merge multiple ivy meshes to save draw calls, or just let static batching work
-    - automatically unwrap ivy UV2s for lightmapping
-    - store meshes in your scene file, as a prefab, or even export to .OBJ
-- tutorial and user documentation is on the [Wiki](https://github.com/radiatoryang/hedera/wiki)
+    - randomize vertex colors for subtle color variation, auto-unwrap ivy UV2s for lightmapping
+    - store ivy meshes directly in your project, or export to .OBJ
+- guide and user documentation is on the [Wiki](https://github.com/radiatoryang/hedera/wiki)
 - tested on Unity 2019.1.8 and MacBook Pro 2017 (but probably works ok on older Unity versions)
 
 ### usage
 - download the latest .unitypackage from [Releases](https://github.com/radiatoryang/hedera/releases)
-- or, clone this Git repository as a [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules), or via [UpmGitExtension](https://github.com/mob-sakai/UpmGitExtension)
+- or, clone this Git repository as a [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules), or clone as a package via [UpmGitExtension](https://github.com/mob-sakai/UpmGitExtension)
 
 ### contributors
 - please post bug reports or (small) feature requests as an [Issue](https://github.com/radiatoryang/hedera/issues)
