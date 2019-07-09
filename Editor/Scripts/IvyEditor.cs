@@ -444,8 +444,9 @@ namespace Hedera
                    
                     if ( choice == 0 || choice == 2) {
                         var prefab = AssetDatabase.LoadAssetAtPath<Object>( "Assets" + filename.Substring( Application.dataPath.Length ) );
-                        var newObj = (GameObject)PrefabUtility.InstantiatePrefab( prefab, ivyBehavior.transform );
+                        var newObj = (GameObject)PrefabUtility.InstantiatePrefab( prefab );
                         Undo.RegisterCreatedObjectUndo( newObj, "Hedera > Instantiate OBJ" );
+                        newObj.transform.SetParent( ivyBehavior.transform );
                         newObj.transform.position = ivyGraphObjJob.seedPos;
 
                         var renders = newObj.GetComponentsInChildren<Renderer>();

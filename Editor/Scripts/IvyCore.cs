@@ -719,7 +719,7 @@ namespace Hedera
 					return false;
 				}
 			#else // uses old prefab workflow
-				return PrefabUtility.GetPrefabType(go) =! PrefabType.None;
+				return PrefabUtility.GetPrefabType(go) != PrefabType.None;
 			#endif
 		}
 

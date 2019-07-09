@@ -150,10 +150,15 @@ namespace Hedera {
                 content = new GUIContent("Vertex Colors", "Randomize leaf mesh's vertex colors, based on a gradient. Make sure your leaf material's shader supports vertex colors, and the default Hedera foliage shader supports vertex colors. If disabled then no vertex colors will be generated, which saves memory.\n(default: true)");
                 ivyProfile.useVertexColors = EditorGUILayout.Toggle(content, ivyProfile.useVertexColors );
                 if ( ivyProfile.useVertexColors ) {
-                    EditorGUI.indentLevel++;
                     content = new GUIContent("Leaf Colors", "Leaves will pick random vertex colors anywhere along this gradient.\n(default: white > green > yellow)");
+                    #if UNITY_2017_1_OR_NEWER
+                    EditorGUI.indentLevel++;
                     ivyProfile.leafVertexColors = EditorGUILayout.GradientField( content, ivyProfile.leafVertexColors );
-                    EditorGUI.indentLevel--;
+                    EditorGUI.indentLevel--; 
+                    #else
+                    EditorGUILayout.HelpBox("Can't display gradient editor in Unity 5.6 or earlier, for boring reasons. You'll have to edit the gradient in debug inspector.", MessageType.Error);
+                    // ivyProfile.leafVertexColors.colorKeys[0].color = EditorGUILayout.ColorField( content, ivyProfile.leafVertexColors.colorKeys[0].color );
+                    #endif
                 }
 
                 content = new GUIContent("Branch Material", "Unity material to use for branches. It doesn't need to be very high resolution or detailed, unless you set your Branch Thickness to be very wide. Example materials can be found in /Hedera/Runtime/Materials/");
