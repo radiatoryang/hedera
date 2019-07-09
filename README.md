@@ -4,14 +4,14 @@
 #### paint 3D ivy in the Unity Editor, simulate growth and clinging in real-time*
 <code>* real-time mesh generation might be very slow on older computers / integrated GPUs</code>
 
-- procedurally generate foliage meshes for your games and 3D worlds
-- includes textures, shaders, presets for painting realistic ivy, cartoon ivy, or even ropes and cables
-- vert counts and polycounts usually < 5k unless you paint a lot of ivy; [download sample ivy .OBJ here (right-click and Save As)](https://raw.githubusercontent.com/radiatoryang/hedera/master/Example/ExampleIvyMeshExport.obj)
+- cover your 3D world in ivy
+- includes textures, shaders, and 5 presets for painting realistic ivy, cartoon ivy, or even ropes and cables
+- curious about vert count / polycount? [download sample ivy .OBJ (right-click Save As)](https://raw.githubusercontent.com/radiatoryang/hedera/master/Example/ExampleIvyMeshExport.obj)
     - merge multiple ivy meshes to save draw calls, or just let static batching work
     - randomize vertex colors for subtle color variation, auto-unwrap ivy UV2s for lightmapping
     - store ivy meshes directly in your project, or export to .OBJ
-- guide and user documentation is on the [Wiki](https://github.com/radiatoryang/hedera/wiki)
-- tested on Unity 2019.1.8 and MacBook Pro 2017 (but probably works ok on older Unity versions)
+- 25+ different ivy settings to tweak... guide and user documentation is on the [Wiki](https://github.com/radiatoryang/hedera/wiki)
+- tested on Unity 2019.1.8 (but probably works ok on older Unity versions)
 
 ### usage
 - download the latest .unitypackage from [Releases](https://github.com/radiatoryang/hedera/releases)
