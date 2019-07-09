@@ -1,0 +1,10 @@
+{
+"name": "com.radiatoryang.hedera",
+"displayName": "Hedera",
+"description": "Paint 3D ivy in the editor and simulate ivy growth patterns in your scene.",
+"version": "1.0.0",
+"unity": "2018.3",
+"license": "GPL 2.0",
+"dependencies": {
+ }
+}
