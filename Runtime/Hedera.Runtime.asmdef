@@ -1,3 +1,6 @@
-﻿{
-	"name": "IVY.Runtime"
+{
+    "name": "Hedera.Runtime",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": []
 }

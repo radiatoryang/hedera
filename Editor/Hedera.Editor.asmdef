@@ -1,7 +1,7 @@
 {
-    "name": "IVY.Editor",
+    "name": "Hedera.Editor",
     "references": [
-        "IVY.Runtime"
+        "Hedera.Runtime"
     ],
     "includePlatforms": [
         "Editor"
