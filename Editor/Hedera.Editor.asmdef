@@ -1,0 +1,10 @@
+{
+    "name": "IVY.Editor",
+    "references": [
+        "IVY.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": []
+}
