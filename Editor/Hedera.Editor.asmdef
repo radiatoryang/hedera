@@ -1,0 +1,10 @@
+{
+    "name": "Hedera.Editor",
+    "references": [
+        "Hedera.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": []
+}
