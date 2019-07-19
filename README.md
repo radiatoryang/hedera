@@ -35,6 +35,9 @@
 - uses [.OBJ exporter code](https://wiki.unity3d.com/index.php/ExportOBJ) by DaveA, KeliHlodversson, tgraupmann, drobe
 - uses [Douglas-Peucker line simplifier code](https://github.com/rohaanhamid/simplify-csharp) by Rohaan Hamid
 
+### press
+- this got [coverage in PC Gamer](https://www.pcgamer.com/this-free-open-source-tool-can-help-game-developers-make-procedural-ivy/) for some reason
+
 ### donations
 - donate to the original Ivy Generator author (Thomas Luft): http://www.loim.de/ivy_generator_donation/
 - to donate to me, just go to my itch.io page and buy / tip whatever you want: https://radiatoryang.itch.io/
