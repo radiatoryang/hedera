@@ -42,6 +42,10 @@ namespace Hedera
             iconMove = EditorGUIUtility.IconContent("MoveTool").image;
         }
 
+        void OnDisable() {
+            Tools.hidden = false;
+        }
+
         // got working painter code from https://github.com/marmitoTH/Unity-Prefab-Placement-Editor
         private void OnSceneGUI()
         {
