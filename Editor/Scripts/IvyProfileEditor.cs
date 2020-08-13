@@ -141,7 +141,7 @@ namespace Hedera {
                 ivyProfile.ivyLeafSize = EditorGUILayout.Slider(content, ivyProfile.ivyLeafSize, 0.05f, 1f);
 
                 content = new GUIContent("Leaf Density %", "How many leaves on each branch. 0% means no leaves, 100% is very bushy.\n(default: 50%)");
-                ivyProfile.leafProbability = EditorGUILayout.IntSlider(content, Mathf.RoundToInt(ivyProfile.leafProbability * 100f), 0, 150) * 0.01f;
+                ivyProfile.leafProbability = EditorGUILayout.IntSlider(content, Mathf.RoundToInt(ivyProfile.leafProbability * 100f), 0, 100) * 0.01f;
 
                 if ( ivyProfile.leafProbability == 0f ) {
                     EditorGUILayout.HelpBox("No leaves when Leaf Density is 0%", MessageType.Warning);
@@ -208,7 +208,7 @@ namespace Hedera {
                     ivyProfile.branchTaper = EditorGUILayout.IntSlider(content, Mathf.RoundToInt(ivyProfile.branchTaper * 100f), 0, 100) * 0.01f;
 
                     content = new GUIContent("Leaf Sunlight %", "Approximates how ivy wants to be in the sun. Leaves will face upwards more. Ivy will grow more leaves on floors / roofs, and fewer leaves on ceilings. 0% means leaves will spawn evenly regardless of surface, and align leaves with surface.\n(default: 100%)");
-                    ivyProfile.leafSunlightBonus = EditorGUILayout.IntSlider(content, Mathf.RoundToInt(ivyProfile.leafSunlightBonus * 100f), 0, 150) * 0.01f;
+                    ivyProfile.leafSunlightBonus = EditorGUILayout.IntSlider(content, Mathf.RoundToInt(ivyProfile.leafSunlightBonus * 100f), 0, 100) * 0.01f;
 
                     EditorGUI.indentLevel--;
                     EditorGUILayout.Space();
