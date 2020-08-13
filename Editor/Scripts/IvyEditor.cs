@@ -42,6 +42,10 @@ namespace Hedera
             iconMove = EditorGUIUtility.IconContent("MoveTool").image;
         }
 
+        void OnDisable() {
+            Tools.hidden = false;
+        }
+
         // got working painter code from https://github.com/marmitoTH/Unity-Prefab-Placement-Editor
         private void OnSceneGUI()
         {
@@ -170,7 +174,7 @@ namespace Hedera
             Ray ray = HandleUtility.GUIPointToWorldRay(Event.current.mousePosition);
             RaycastHit hit;
 
-            if (Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, ivyBehavior.profileAsset.ivyProfile.collisionMask)) 
+            if (Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, ivyBehavior.profileAsset.ivyProfile.collisionMask, QueryTriggerInteraction.Ignore)) 
             {
                 mousePos = hit.point + hit.normal * 0.05f;
                 mouseNormal = hit.normal;
@@ -271,6 +275,15 @@ namespace Hedera
                 EditorGUILayout.HelpBox("Painting / mesh generation only works in saved scenes on active game objects.\n- Save the scene?\n- Put this game object in a saved scene?\n- Make sure it is active?", MessageType.Error);
                 GUI.enabled = false;
             }
+
+            // if Gizmos aren't drawn in scene view, then we can't paint anything since OnSceneGUI() is no longer called... but this warning is only supported in Unity 2019.1 or newer
+            // see issue: https://github.com/radiatoryang/hedera/issues/6
+            #if UNITY_2019_1_OR_NEWER
+            if ( SceneView.drawGizmos == false) {
+                GUI.enabled = false;
+                EditorGUILayout.HelpBox("Gizmos are disabled in the Scene View, which breaks OnSceneGUI(), so ivy painting is disabled.", MessageType.Error);
+            }
+            #endif
 
             // plant root creation button
             var oldColor = GUI.color;
