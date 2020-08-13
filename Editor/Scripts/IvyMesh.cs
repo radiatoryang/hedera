@@ -367,7 +367,7 @@ namespace Hedera
                 // simple multiplier, just to make it a more dense
                 for (int i = 0; i < 1; ++i)
                 {
-                    var leafPositions = GetAllSamplePosAlongRoot( root, p.ivyLeafSize );
+                    var leafPositions = GetAllSamplePosAlongRoot( root, p.ivyLeafSize * Mathf.Clamp(1f - p.leafSunlightBonus, 0.69f, 1f) * Mathf.Clamp(1f - p.leafProbability, 0.69f, 1f) );
 
                     // for(int n=0; n<root.nodes.Count; n++)
                     foreach ( var kvp in leafPositions ) 
@@ -410,13 +410,9 @@ namespace Hedera
                         }
 
                         IvyNode previousNode = root.nodes[Mathf.Max(0, n - 1)];
-                        float randomSpreadHack = 0.25f;
-                        if ( n <= 1 || n == root.nodes.Count-1 ) {
-                            randomSpreadHack = 0f;
-                        }
 
                         // randomize leaf probability // guarantee a leaf on the first or last node
-                        if ( (Random.value + groundedness > 1f - p.leafProbability) || randomSpreadHack == 0f )
+                        if ( (Random.value + groundedness > 1f - p.leafProbability) || n <= 1 || n == root.nodes.Count-1 )
                         {
                             cache.leafPoints.Add( node.p );
                             allLeafPoints.Add( node.p );
@@ -424,14 +420,16 @@ namespace Hedera
                             //center of leaf quad
                             Vector3 up = (newLeafPos - previousNode.p).normalized;
                             Vector3 right = Vector3.Cross( up, node.c );
-                            Vector3 center = newLeafPos - node.c.normalized * 0.05f + (up * Random.Range(-1f, 1f) + right * Random.Range(-1f, 1f) ) * randomSpreadHack * p.ivyLeafSize;
+                            // Vector3 center = newLeafPos - node.c.normalized * 0.05f + (up * Random.Range(-1f, 1f) + right * Random.Range(-1f, 1f) ) * randomSpreadHack * p.ivyLeafSize;
+                            Vector3 center = newLeafPos - node.c.normalized * 0.05f;
 
                             //size of leaf
                             float sizeWeight = 1.5f - ( Mathf.Abs(Mathf.Cos(2.0f * Mathf.PI)) * 0.5f + 0.5f);
                             float leafSize = p.ivyLeafSize * sizeWeight + Random.Range(-p.ivyLeafSize, p.ivyLeafSize) * 0.1f + (p.ivyLeafSize * groundedness);
                             leafSize = Mathf.Max( 0.01f, leafSize);
 
-                            Quaternion facing = node.c.sqrMagnitude < 0.001f ? Quaternion.identity : Quaternion.LookRotation( Vector3.Lerp(-node.c, Vector3.up, Mathf.Clamp01(0.68f - Mathf.Abs(groundedness)) * ivyProfile.leafSunlightBonus), Random.onUnitSphere);
+                            // Quaternion facing = node.c.sqrMagnitude < 0.001f ? Quaternion.identity : Quaternion.LookRotation( Vector3.Lerp(-node.c, Vector3.up, Mathf.Clamp01(0.68f - Mathf.Abs(groundedness)) * ivyProfile.leafSunlightBonus), Random.onUnitSphere);
+                            Quaternion facing = node.c.sqrMagnitude < 0.001f ? Quaternion.identity : Quaternion.LookRotation( Vector3.Lerp(-node.c, Vector3.up, Mathf.Clamp01(0.68f - Mathf.Abs(groundedness)) * ivyProfile.leafSunlightBonus));
                             AddLeafVertex(cache, center, new Vector3(-1f, 1f, 0f), leafSize, facing);
                             AddLeafVertex(cache, center, new Vector3(1f, 1f, 0f), leafSize, facing);
                             AddLeafVertex(cache, center, new Vector3(-1f, -1f, 0f), leafSize, facing);
