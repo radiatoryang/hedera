@@ -170,7 +170,7 @@ namespace Hedera
             Ray ray = HandleUtility.GUIPointToWorldRay(Event.current.mousePosition);
             RaycastHit hit;
 
-            if (Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, ivyBehavior.profileAsset.ivyProfile.collisionMask)) 
+            if (Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, ivyBehavior.profileAsset.ivyProfile.collisionMask, QueryTriggerInteraction.Ignore)) 
             {
                 mousePos = hit.point + hit.normal * 0.05f;
                 mouseNormal = hit.normal;
