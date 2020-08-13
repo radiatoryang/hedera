@@ -272,6 +272,15 @@ namespace Hedera
                 GUI.enabled = false;
             }
 
+            // if Gizmos aren't drawn in scene view, then we can't paint anything since OnSceneGUI() is no longer called... but this warning is only supported in Unity 2019.1 or newer
+            // see issue: https://github.com/radiatoryang/hedera/issues/6
+            #if UNITY_2019_1_OR_NEWER
+            if ( SceneView.drawGizmos == false) {
+                GUI.enabled = false;
+                EditorGUILayout.HelpBox("Gizmos are disabled in the Scene View, which breaks OnSceneGUI(), so ivy painting is disabled.", MessageType.Error);
+            }
+            #endif
+
             // plant root creation button
             var oldColor = GUI.color;
             GUI.color = isPlantingModeActive ? Color.yellow : Color.Lerp(Color.yellow, oldColor, 0.69f);
