@@ -42,6 +42,7 @@ namespace Hedera
 		static List<int> leafTrianglesAll = new List<int>(16384);
         static List<Color> leafColorsAll = new List<Color>(4096);
         static Mesh branchMesh, leafMesh;
+        static Quaternion lastLeafFacing = Quaternion.identity;
 
         public static void InitOrRefreshRoot(IvyGraph ivyGraph, IvyProfile ivyProfile) {
             if ( ivyGraph.rootGO == null ) {
@@ -429,11 +430,11 @@ namespace Hedera
                             leafSize = Mathf.Max( 0.01f, leafSize);
 
                             // Quaternion facing = node.c.sqrMagnitude < 0.001f ? Quaternion.identity : Quaternion.LookRotation( Vector3.Lerp(-node.c, Vector3.up, Mathf.Clamp01(0.68f - Mathf.Abs(groundedness)) * ivyProfile.leafSunlightBonus), Random.onUnitSphere);
-                            Quaternion facing = node.c.sqrMagnitude < 0.001f ? Quaternion.identity : Quaternion.LookRotation( Vector3.Lerp(-node.c, Vector3.up, Mathf.Clamp01(0.68f - Mathf.Abs(groundedness)) * ivyProfile.leafSunlightBonus));
-                            AddLeafVertex(cache, center, new Vector3(-1f, 1f, 0f), leafSize, facing);
-                            AddLeafVertex(cache, center, new Vector3(1f, 1f, 0f), leafSize, facing);
-                            AddLeafVertex(cache, center, new Vector3(-1f, -1f, 0f), leafSize, facing);
-                            AddLeafVertex(cache, center, new Vector3(1f, -1f, 0f), leafSize, facing);
+                            lastLeafFacing = node.c.sqrMagnitude < 0.001f ? lastLeafFacing : Quaternion.LookRotation( Vector3.Lerp(-node.c, Vector3.up, Mathf.Clamp01(0.68f - Mathf.Abs(groundedness)) * ivyProfile.leafSunlightBonus));
+                            AddLeafVertex(cache, center, new Vector3(-1f, 1f, 0f), leafSize, lastLeafFacing);
+                            AddLeafVertex(cache, center, new Vector3(1f, 1f, 0f), leafSize, lastLeafFacing);
+                            AddLeafVertex(cache, center, new Vector3(-1f, -1f, 0f), leafSize, lastLeafFacing);
+                            AddLeafVertex(cache, center, new Vector3(1f, -1f, 0f), leafSize, lastLeafFacing);
 
                             cache.leafUVs.Add(new Vector2(1.0f, 1.0f));
                             cache.leafUVs.Add(new Vector2(0.0f, 1.0f));
