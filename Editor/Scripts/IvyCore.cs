@@ -38,7 +38,7 @@ namespace Hedera
 		public static IvyCore Instance;
 
 		public static double lastRefreshTime { get; private set; }
-		static double refreshInterval = 0.1;
+		static double refreshInterval = 0.04;
 
 		public static List<IvyBehavior> ivyBehaviors = new List<IvyBehavior>();
 
