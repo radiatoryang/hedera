@@ -279,7 +279,7 @@ namespace Hedera
             // if Gizmos aren't drawn in scene view, then we can't paint anything since OnSceneGUI() is no longer called... but this warning is only supported in Unity 2019.1 or newer
             // see issue: https://github.com/radiatoryang/hedera/issues/6
             #if UNITY_2019_1_OR_NEWER
-            if ( SceneView.drawGizmos == false) {
+            if ( SceneView.lastActiveSceneView.drawGizmos == false) {
                 GUI.enabled = false;
                 EditorGUILayout.HelpBox("Gizmos are disabled in the Scene View, which breaks OnSceneGUI(), so ivy painting is disabled.", MessageType.Error);
             }
