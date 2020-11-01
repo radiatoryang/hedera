@@ -18,6 +18,9 @@ Shader "Nature/HederaIvyFoliage" {
 
         _ShakeTime ("Shake Time", Float) = 1.0
         _ShakeBending ("Shake Amount", Float) = 1.0
+
+		[ToggleOff] _SpecularHighlights("Specular Highlights", Float) = 1.0
+		[ToggleOff] _GlossyReflections("Glossy Reflections", Float) = 1.0
 	}
  
 	SubShader {
@@ -27,6 +30,10 @@ Shader "Nature/HederaIvyFoliage" {
    
 		CGPROGRAM
 		#pragma surface surf Standard fullforwardshadows alphatest:_Cutoff vertex:vert addshadow
+		#pragma shader_feature _NORMALMAP
+		#pragma shader_feature _METALLICGLOSSMAP
+		#pragma shader_feature _ _SPECULARHIGHLIGHTS_OFF
+		#pragma shader_feature _ _GLOSSYREFLECTIONS_OFF
 		#pragma target 3.0
 
 		fixed4 _Color;
