@@ -3,8 +3,18 @@
 "displayName": "Hedera",
 "description": "Paint 3D ivy in the editor and simulate ivy growth patterns in your scene.",
 "version": "1.2.0",
-"unity": "2019.4",
+"unity": "2018.3",
 "license": "GPL 2.0",
+"author": {
+    "name": "Robert Yang",
+    "email": "2285943+radiatoryang@users.noreply.github.com",
+    "url": "https://debacle.us"
+},
+"keywords": [
+    "ivy", "foliage", "environment", "paint"
+],
 "dependencies": {
- }
+
+}
+ 
 }
