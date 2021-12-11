@@ -107,7 +107,8 @@ namespace Hedera
 
             if ((current.type == EventType.MouseDrag || current.type == EventType.MouseDown) )
             {
-                if (current.button == 0 && (lastPos == Vector3.zero || CanDraw()) && !current.shift)
+                // 11 Dec 2021: add no-alt keyboard modifier, so orbiting camera doesn't cause painting (https://github.com/radiatoryang/hedera/issues/12)
+                if (current.button == 0 && (lastPos == Vector3.zero || CanDraw()) && !current.shift && !current.alt)
                 {
                     mouseDirection = Vector3.MoveTowards( mouseDirection, (mousePos - lastPos).normalized, System.Convert.ToSingle(deltaTime) );
                     lastPos = mousePos;
