@@ -1,10 +1,26 @@
 {
     "name": "Hedera.Editor",
+    "rootNamespace": "",
     "references": [
-        "Hedera.Runtime"
+        "Hedera.Runtime",
+        "Unity.Formats.Fbx.Editor",
+        "Autodesk.Fbx.Editor"
     ],
     "includePlatforms": [
         "Editor"
     ],
-    "excludePlatforms": []
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.formats.fbx",
+            "expression": "0.1",
+            "define": "CAN_EXPORT_FBX"
+        }
+    ],
+    "noEngineReferences": false
 }
