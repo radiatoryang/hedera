@@ -6,6 +6,7 @@ This is an ongoing changelog for Hedera, a free open-source 3D ivy painting plug
 - started a formal changelog
 - in IvyEditor, added no-alt keyboard modifier, so orbiting 3D camera in scene view doesn't cause painting (https://github.com/radiatoryang/hedera/issues/12)
 - move example ivy profiles and textures to "Samples" folder, so that Package Manager users can import the data directly into their Assets (and thus modify them)
+- added better adhesion -- fires raycasts to calculate nearest surface, good for mesh colliders? enable / disable with the new checkbox right below the "Start Painting" button... thanks for the PR, @alexjhetherington !
 
 
 ## v1.2.0 - 2 November 2020
