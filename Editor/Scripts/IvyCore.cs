@@ -80,7 +80,7 @@ namespace Hedera
 					}
 					foreach ( var ivy in ivyB.ivyGraphs) {
 						if ( ivy.isGrowing ) {
-							GrowIvyStep(ivy, ivyB.profileAsset.ivyProfile);
+							GrowIvyStep(ivy, ivyB.profileAsset.ivyProfile, ivyB.useBetterAdhesion);
 							if ( ivy.generateMeshDuringGrowth ) {
 								IvyMesh.GenerateMesh(ivy, ivyB.profileAsset.ivyProfile);
 							}
@@ -266,7 +266,7 @@ namespace Hedera
 			TryGrowIvyBranch( graph, ivyProfile, randomRoot, randomNode, randomLength);
 		}
 
-	    public static void GrowIvyStep(IvyGraph graph, IvyProfile ivyProfile)
+	    public static void GrowIvyStep(IvyGraph graph, IvyProfile ivyProfile, bool useBetterAdhesion)
         {
 			// if there are no longer any live roots, then we're dead
 			if ( graph.isGrowing ) {
@@ -307,7 +307,7 @@ namespace Hedera
                 Vector3 randomVector = (Random.onUnitSphere * 0.5f + exploreVector).normalized;
 
                 //adhesion influence to the nearest triangle = weighted sum of previous adhesion vectors
-                Vector3 adhesionVector = ComputeAdhesion(lastNode.p + graph.seedPos, ivyProfile);
+                Vector3 adhesionVector = ComputeAdhesion(lastNode.p + graph.seedPos, ivyProfile, useBetterAdhesion);
 				if ( adhesionVector.sqrMagnitude <= 0.01f) {
 					adhesionVector = lastNode.c;
 				}
@@ -458,18 +458,18 @@ namespace Hedera
 
 	    /** compute the adhesion of scene objects at a point pos*/
 		static Dictionary<Mesh, Vector3[]> adhesionMeshCache = new Dictionary<Mesh, Vector3[]>();
-	    static Vector3 ComputeAdhesion(Vector3 pos, IvyProfile ivyProfile)
+	    static Vector3 ComputeAdhesion(Vector3 pos, IvyProfile ivyProfile, bool useBetterAdhesion)
         {
 	        Vector3 adhesionVector = Vector3.zero;
 
 	        float minDistance = ivyProfile.maxAdhesionDistance;
 
             //Raycast solution does not need to find colliders
-            if (true)
+            if (useBetterAdhesion)
             {
                 //Inverse resolution should be 1-360. Higher number means less rays. 20 seems to work well.
                 //I multiply rays by a small amount to avoid edge case but it's force of habit and probably not necessary
-                RaycastHit closestRaycastHit = GetClosestHitInSphere(pos, ivyProfile.maxAdhesionDistance * 1.05f, 20);
+                RaycastHit closestRaycastHit = GetClosestHitInSphere(pos, ivyProfile.maxAdhesionDistance * 1.05f, 20, ivyProfile.collisionMask, QueryTriggerInteraction.Ignore);
 
                 if (closestRaycastHit.collider != null)
                 {
@@ -557,7 +557,7 @@ namespace Hedera
         }
 
         //https://answers.unity.com/questions/747840/what-is-the-best-way-to-send-raycasts-out-in-a-sph.html
-        public static RaycastHit GetClosestHitInSphere(Vector3 origin, float maxDistance, float inverseResolution)
+        public static RaycastHit GetClosestHitInSphere(Vector3 origin, float maxDistance, float inverseResolution, LayerMask raycastMask, QueryTriggerInteraction useTriggers)
         {
             Ray ray = new Ray();
             ray.origin = origin;
@@ -577,7 +577,7 @@ namespace Hedera
                     direction = xRotation * direction;
                     ray.direction = direction;
                     RaycastHit candidate;
-                    Physics.Raycast(ray, out candidate, maxDistance);
+                    Physics.Raycast(ray, out candidate, maxDistance, raycastMask, useTriggers);
                     if (candidate.collider != null && (closest.collider == null || closest.distance > candidate.distance))
                     {
                         closest = candidate;

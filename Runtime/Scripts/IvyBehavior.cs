@@ -8,7 +8,7 @@ namespace Hedera {
 		// strip out ivy generator code upon compile
 		#if UNITY_EDITOR
 		public List<IvyGraph> ivyGraphs = new List<IvyGraph>();
-		public bool generateMeshDuringGrowth = true, enableGrowthSim = true;
+		public bool generateMeshDuringGrowth = true, enableGrowthSim = true, useBetterAdhesion = true;
 		public bool showProfileFoldout;
 		public IvyProfileAsset profileAsset;
 		public Color debugColor = Color.yellow;
