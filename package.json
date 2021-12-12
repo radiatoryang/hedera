@@ -1,20 +1,28 @@
 {
 "name": "com.radiatoryang.hedera",
 "displayName": "Hedera",
-"description": "Paint 3D ivy in the editor and simulate ivy growth patterns in your scene.",
-"version": "1.2.0",
+"description": "Paint 3D ivy in the editor and simulate ivy growth. \n\n IMPORTANT: in Package Manager, click 'Samples' below to import default ivy profiles and textures into your project's Assets folder.",
+"version": "1.2.3",
 "unity": "2018.3",
-"license": "GPL 2.0",
+"license": "GPL-2.0-or-later",
+"documentationUrl": "https://github.com/radiatoryang/hedera/wiki",
 "author": {
     "name": "Robert Yang",
     "email": "2285943+radiatoryang@users.noreply.github.com",
     "url": "https://debacle.us"
 },
 "keywords": [
-    "ivy", "foliage", "environment", "paint"
+    "ivy", "foliage", "environment", "paint", "art", "3d", "world", "env"
 ],
 "dependencies": {
 
-}
+},
+"samples": [
+    {
+        "displayName": "Example Ivy Profiles and Textures",
+        "description": "Sample ivy scene + ivy profiles + textures you can use.",
+        "path": "Samples~/ExampleIvyScene"
+    }
+]
  
 }

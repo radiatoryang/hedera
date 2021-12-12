@@ -80,7 +80,7 @@ namespace Hedera
 					}
 					foreach ( var ivy in ivyB.ivyGraphs) {
 						if ( ivy.isGrowing ) {
-							GrowIvyStep(ivy, ivyB.profileAsset.ivyProfile);
+							GrowIvyStep(ivy, ivyB.profileAsset.ivyProfile, ivyB.useBetterAdhesion);
 							if ( ivy.generateMeshDuringGrowth ) {
 								IvyMesh.GenerateMesh(ivy, ivyB.profileAsset.ivyProfile);
 							}
@@ -266,7 +266,7 @@ namespace Hedera
 			TryGrowIvyBranch( graph, ivyProfile, randomRoot, randomNode, randomLength);
 		}
 
-	    public static void GrowIvyStep(IvyGraph graph, IvyProfile ivyProfile)
+	    public static void GrowIvyStep(IvyGraph graph, IvyProfile ivyProfile, bool useBetterAdhesion)
         {
 			// if there are no longer any live roots, then we're dead
 			if ( graph.isGrowing ) {
@@ -307,7 +307,7 @@ namespace Hedera
                 Vector3 randomVector = (Random.onUnitSphere * 0.5f + exploreVector).normalized;
 
                 //adhesion influence to the nearest triangle = weighted sum of previous adhesion vectors
-                Vector3 adhesionVector = ComputeAdhesion(lastNode.p + graph.seedPos, ivyProfile);
+                Vector3 adhesionVector = ComputeAdhesion(lastNode.p + graph.seedPos, ivyProfile, useBetterAdhesion);
 				if ( adhesionVector.sqrMagnitude <= 0.01f) {
 					adhesionVector = lastNode.c;
 				}
@@ -458,14 +458,32 @@ namespace Hedera
 
 	    /** compute the adhesion of scene objects at a point pos*/
 		static Dictionary<Mesh, Vector3[]> adhesionMeshCache = new Dictionary<Mesh, Vector3[]>();
-	    static Vector3 ComputeAdhesion(Vector3 pos, IvyProfile ivyProfile)
+	    static Vector3 ComputeAdhesion(Vector3 pos, IvyProfile ivyProfile, bool useBetterAdhesion)
         {
 	        Vector3 adhesionVector = Vector3.zero;
 
 	        float minDistance = ivyProfile.maxAdhesionDistance;
 
-			// find nearest colliders
-			var nearbyColliders = Physics.OverlapSphere( pos, ivyProfile.maxAdhesionDistance, ivyProfile.collisionMask, QueryTriggerInteraction.Ignore);
+            //Raycast solution does not need to find colliders
+            if (useBetterAdhesion)
+            {
+                //Inverse resolution should be 1-360. Higher number means less rays. 20 seems to work well.
+                //I multiply rays by a small amount to avoid edge case but it's force of habit and probably not necessary
+                RaycastHit closestRaycastHit = GetClosestHitInSphere(pos, ivyProfile.maxAdhesionDistance * 1.05f, 20, ivyProfile.collisionMask, QueryTriggerInteraction.Ignore);
+
+                if (closestRaycastHit.collider != null)
+                {
+                    if (closestRaycastHit.distance < minDistance)
+                    {
+                        adhesionVector = (closestRaycastHit.point - pos).normalized;
+                        adhesionVector *= 1.0f - closestRaycastHit.distance / ivyProfile.maxAdhesionDistance;
+                        return adhesionVector;
+                    }
+                }
+            }
+
+            // find nearest colliders
+            var nearbyColliders = Physics.OverlapSphere( pos, ivyProfile.maxAdhesionDistance, ivyProfile.collisionMask, QueryTriggerInteraction.Ignore);
 
 			// find closest point on each collider
 			foreach ( var col in nearbyColliders ) {
@@ -538,7 +556,39 @@ namespace Hedera
 	        return adhesionVector;
         }
 
-		public static void RegenerateDebugLines( Vector3 seedPos, IvyRoot root) {
+        //https://answers.unity.com/questions/747840/what-is-the-best-way-to-send-raycasts-out-in-a-sph.html
+        public static RaycastHit GetClosestHitInSphere(Vector3 origin, float maxDistance, float inverseResolution, LayerMask raycastMask, QueryTriggerInteraction useTriggers)
+        {
+            Ray ray = new Ray();
+            ray.origin = origin;
+            Vector3 direction = Vector3.right;
+            int steps = Mathf.FloorToInt(360f / inverseResolution);
+            Quaternion xRotation = Quaternion.Euler(Vector3.right * inverseResolution);
+            Quaternion yRotation = Quaternion.Euler(Vector3.up * inverseResolution);
+            Quaternion zRotation = Quaternion.Euler(Vector3.forward * inverseResolution);
+
+            RaycastHit closest = new RaycastHit();
+
+            for (int x = 0; x < steps / 2; x++)
+            {
+                direction = zRotation * direction;
+                for (int y = 0; y < steps; y++)
+                {
+                    direction = xRotation * direction;
+                    ray.direction = direction;
+                    RaycastHit candidate;
+                    Physics.Raycast(ray, out candidate, maxDistance, raycastMask, useTriggers);
+                    if (candidate.collider != null && (closest.collider == null || closest.distance > candidate.distance))
+                    {
+                        closest = candidate;
+                    }
+                }
+            }
+
+            return closest;
+        }
+
+        public static void RegenerateDebugLines( Vector3 seedPos, IvyRoot root) {
 			root.debugLineSegmentsArray = new Vector3[(root.nodes.Count-1)*2];
 			
 			var cache = IvyRoot.GetMeshCacheFor(root);

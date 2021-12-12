@@ -107,7 +107,8 @@ namespace Hedera
 
             if ((current.type == EventType.MouseDrag || current.type == EventType.MouseDown) )
             {
-                if (current.button == 0 && (lastPos == Vector3.zero || CanDraw()) && !current.shift)
+                // 11 Dec 2021: add no-alt keyboard modifier, so orbiting camera doesn't cause painting (https://github.com/radiatoryang/hedera/issues/12)
+                if (current.button == 0 && (lastPos == Vector3.zero || CanDraw()) && !current.shift && !current.alt)
                 {
                     mouseDirection = Vector3.MoveTowards( mouseDirection, (mousePos - lastPos).normalized, System.Convert.ToSingle(deltaTime) );
                     lastPos = mousePos;
@@ -298,8 +299,11 @@ namespace Hedera
             content = new GUIContent( " Enable Growth Sim AI", "If disabled, then you can just paint ivy without simulation or AI, which is useful when you want small strokes or full control." );
             ivyBehavior.enableGrowthSim = EditorGUILayout.ToggleLeft(content, ivyBehavior.enableGrowthSim);
 
-            content = new GUIContent( " Make Mesh During Painting / Growth", "Generate 3D ivy mesh during painting and growth. Very cool, but very processing intensive. If your computer gets very slow while painting, then disable this." );
+            content = new GUIContent( " Make Mesh During Painting / Growth", "Generate 3D ivy mesh during painting and growth. Very cool, but can potentially be very processing intensive. If your computer gets very slow while painting, then disable this." );
             ivyBehavior.generateMeshDuringGrowth = EditorGUILayout.ToggleLeft(content, ivyBehavior.generateMeshDuringGrowth);
+
+            content = new GUIContent( " Do More Adhesion Calculations", "If enabled, fires additional raycasts near painting cursor for better painting on concave surfaces and/or mesh colliders with sparse topology. Can potentially be processing intensive. If your computer gets very slow while painting, then disable this.");
+            ivyBehavior.useBetterAdhesion = EditorGUILayout.ToggleLeft(content, ivyBehavior.useBetterAdhesion);
 
             int visibleIvy = ivyBehavior.ivyGraphs.Where( ivy => ivy.isVisible ).Count();
             GUI.enabled = isInARealScene && visibleIvy > 0;
