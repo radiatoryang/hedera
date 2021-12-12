@@ -13,10 +13,12 @@
 - 25+ different ivy settings to tweak for your own presets! guide and user documentation is on the [Wiki](https://github.com/radiatoryang/hedera/wiki)
 - tested on Unity 5.6.7f1 and 2019.1.8 and 2021.2.0f1 (but probably works ok on other Unity versions too)
 - no HDRP or URP shaders included yet, maybe in 2022? lol
+- [changelog](https://github.com/radiatoryang/hedera/blob/master/CHANGELOG.md)
 
-### usage
-- download the latest .unitypackage from [Releases](https://github.com/radiatoryang/hedera/releases)
-- or, clone this Git repository as a [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules), or clone as a package via [UpmGitExtension](https://github.com/mob-sakai/UpmGitExtension)
+### installation 
+- (recommended) in Unity's Package Manager, add ``https://github.com/radiatoryang/hedera.git`` as a Git URL package [full instructions](https://github.com/radiatoryang/hedera/wiki#unity-package-manager-recommended)
+- or manually download the latest .ZIP from [Releases](https://github.com/radiatoryang/hedera/releases) and unzip to ``/<your project folder>/Packages/com.radiatoryang.hedera/``
+- or clone this Git repository as a [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) into ``/<your project folder>/Packages/com.radiatoryang.hedera/``
 
 ### contributors
 - please post bug reports or (small) feature requests as an [Issue](https://github.com/radiatoryang/hedera/issues)
