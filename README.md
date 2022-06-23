@@ -1,10 +1,7 @@
 # hedera
-<img width=320px align=right src=https://user-images.githubusercontent.com/2285943/60907136-d0713000-a246-11e9-97a2-de9cb8ffa8cd.gif> 
+<img width=320 align=right src=https://user-images.githubusercontent.com/2285943/60907136-d0713000-a246-11e9-97a2-de9cb8ffa8cd.gif> 
 
-#### paint 3D ivy in the Unity Editor, simulate growth in real-time*
-<code>* real-time mesh gen might be slow on old computers / GPUs</code>
-
-- cover your 3D world in ivy
+- paint 3D ivy in Unity, simulate growth
 - includes textures, shaders, and 5 presets for painting realistic ivy, cartoon ivy, or even ropes and cables
 - curious about vert count / polycount? [download sample ivy .OBJ (right-click Save As)](https://raw.githubusercontent.com/radiatoryang/hedera/master/Example/ExampleIvyMeshExport.obj)
     - merge multiple ivy meshes to save draw calls, or just let static batching work
@@ -12,7 +9,7 @@
     - store ivy meshes directly in your project, or export to .OBJ (note: OBJ file format doesn't support vertex color nor UV2)
 - 25+ different ivy settings to tweak for your own presets! guide and user documentation is on the [Wiki](https://github.com/radiatoryang/hedera/wiki)
 - tested on Unity 5.6.7f1 and 2019.1.8 and 2021.2.0f1 (but probably works ok on other Unity versions too)
-- no HDRP or URP shaders included yet, maybe in 2022? lol
+- **no HDRP or URP shaders included** so you have to swap in your own, but everything else will still probably work OK
 - [changelog](https://github.com/radiatoryang/hedera/blob/master/CHANGELOG.md)
 
 ### installation 
